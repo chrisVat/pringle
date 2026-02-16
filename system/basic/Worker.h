@@ -402,7 +402,33 @@ public:
                 cout << "Superstep " << global_step_num << " done. Time elapsed: " << get_timer(4) << " seconds" << endl;
                 cout << "#msgs: " << step_msg_num << ", #vadd: " << step_vadd_num << endl;
             }
+
+            // ---- Aggregate instrumentation counters ----
+            long long global_total_bytes =
+                master_sum_LL(total_bytes_sent);
+
+            long long global_intra_bytes =
+                master_sum_LL(intra_machine_bytes_sent);
+
+            long long global_cross_bytes =
+                master_sum_LL(cross_machine_bytes_sent);
+
+            // ---- Print only on master ----
+            if (_my_rank == MASTER_RANK) {
+                cout << "==============================" << endl;
+                cout << "Network Instrumentation:" << endl;
+                cout << "Total Bytes Sent: " << global_total_bytes << endl;
+                cout << "Intra-Machine Bytes: " << global_intra_bytes << endl;
+                cout << "Cross-Machine Bytes: " << global_cross_bytes << endl;
+                cout << "==============================" << endl;
+            }
+
+            // Reset for next superstep
+            total_bytes_sent = 0;
+            intra_machine_bytes_sent = 0;
+            cross_machine_bytes_sent = 0;
         }
+        
         worker_barrier();
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
