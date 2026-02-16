@@ -18,6 +18,16 @@ using namespace std;
 
 int _my_rank;
 int _num_workers;
+
+//============================
+///global variables for the instrumentation to track bytes sent
+long long total_bytes_sent = 0;
+long long cross_machine_bytes_sent = 0;
+long long intra_machine_bytes_sent = 0;
+
+std::vector<std::string> worker_hostnames;
+//============================
+
 inline int get_worker_id()
 {
     return _my_rank;
@@ -32,6 +42,24 @@ void init_workers()
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &_num_workers);
     MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
+
+    // === Collect hostnames for all workers ===
+    char hostname[MPI_MAX_PROCESSOR_NAME];
+    int len;
+    MPI_Get_processor_name(hostname, &len);
+
+    std::vector<char> all_hosts(MPI_MAX_PROCESSOR_NAME * _num_workers);
+
+    MPI_Allgather(hostname, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
+                all_hosts.data(), MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
+                MPI_COMM_WORLD);
+
+    worker_hostnames.resize(_num_workers);
+
+    for (int i = 0; i < _num_workers; i++) {
+        worker_hostnames[i] =
+            std::string(&all_hosts[i * MPI_MAX_PROCESSOR_NAME]);
+    }
 }
 
 void worker_finalize()
