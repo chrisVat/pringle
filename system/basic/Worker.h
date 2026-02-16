@@ -479,6 +479,13 @@ public:
 
         //send vertices according to hash_id (reduce)
         sync_graph();
+
+
+        // ---- DEBUG: print vertex distribution ----
+        cout << "Rank " << _my_rank 
+            << " vertex count after sync_graph: " 
+            << vertexes.size() << endl;
+            
         message_buffer->init(vertexes);
         //barrier for data loading
         worker_barrier(); //@@@@@@@@@@@@@
