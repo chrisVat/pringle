@@ -2,7 +2,10 @@
 
 int main(int argc, char* argv[]){
 	init_workers();
-	pregel_pagerank("/toyFolder", "/toyOutput", true);
+
+	cout << "Rank: " << _my_rank << " | Size: " << _num_workers << endl;
+	
+	pregel_pagerank("/smallTwitchFolder", "/outputSmallTwitchFolder", true);
 	worker_finalize();
 	return 0;
 }
