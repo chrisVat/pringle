@@ -71,7 +71,7 @@ public:
         // Count cross-worker messages
         for (int i = 0; i < np; i++) {
             if (i != me) {
-                long long cnt = (int)out_messages.getBuf(i).size();
+                int cnt = (int)out_messages.getBuf(i).size();
                 _cross_worker_msg_num += cnt;
                 _worker_comm_matrix[me][i] += cnt;  // accumulates across all supersteps
             }

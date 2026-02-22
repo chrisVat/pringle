@@ -344,6 +344,7 @@ public:
         sync_graph();
 
         message_buffer->init(vertexes);
+        init_comm_matrix();  // NEW: initialize communication matrix for instrumentation
         //barrier for data loading
         worker_barrier(); //@@@@@@@@@@@@@
         StopTimer(WORKER_TIMER);
