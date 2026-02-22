@@ -396,11 +396,16 @@ public:
                 add_vertex(to_add[i]);
             to_add.clear();
             //===================
+
+            long long global_cross_worker_msg = all_sum_LL(_cross_worker_msg_num);
+            _cross_worker_msg_num = 0;  // reset for next superstep
+
             worker_barrier();
             StopTimer(4);
             if (_my_rank == MASTER_RANK) {
                 cout << "Superstep " << global_step_num << " done. Time elapsed: " << get_timer(4) << " seconds" << endl;
                 cout << "#msgs: " << step_msg_num << ", #vadd: " << step_vadd_num << endl;
+                cout << "#cross-worker msgs: " << global_cross_worker_msg << endl;  // NEW
             }
         }
         worker_barrier();
@@ -411,6 +416,27 @@ public:
         PrintTimer("Total Computational Time", WORKER_TIMER);
         if (_my_rank == MASTER_RANK)
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
+
+        // Every worker sends its row, master collects and prints
+        vector<long long> my_row(_num_workers);
+        for (int i = 0; i < _num_workers; i++)
+            my_row[i] = _worker_comm_matrix[_my_rank][i];
+
+        if (_my_rank == MASTER_RANK) {
+            for (int w = 1; w < _num_workers; w++) {
+                vector<long long> row = recv_data<vector<long long>>(w);
+                for (int i = 0; i < _num_workers; i++)
+                    _worker_comm_matrix[w][i] = row[i];
+            }
+            cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
+            for (int i = 0; i < _num_workers; i++) {
+                for (int j = 0; j < _num_workers; j++)
+                    cout << setw(10) << _worker_comm_matrix[i][j];
+                cout << endl;
+            }
+        } else {
+            send_data(my_row, MASTER_RANK);
+        }
 
         // dump graph
         ResetTimer(WORKER_TIMER);

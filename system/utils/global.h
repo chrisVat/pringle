@@ -18,6 +18,14 @@ using namespace std;
 
 int _my_rank;
 int _num_workers;
+
+inline long long _cross_worker_msg_num = 0;
+inline vector<vector<long long>> _worker_comm_matrix;
+
+inline void init_comm_matrix() {
+    _worker_comm_matrix.assign(_num_workers, vector<long long>(_num_workers, 0));
+}
+
 inline int get_worker_id()
 {
     return _my_rank;
