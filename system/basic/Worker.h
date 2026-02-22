@@ -1,6 +1,7 @@
 #ifndef WORKER_H
 #define WORKER_H
 
+#include <iomanip>
 #include <vector>
 #include "../utils/global.h"
 #include "MessageBuffer.h"
@@ -418,13 +419,13 @@ public:
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
 
         // Every worker sends its row, master collects and prints
-        vector<long long> my_row(_num_workers);
+        vector<int> my_row(_num_workers);
         for (int i = 0; i < _num_workers; i++)
             my_row[i] = _worker_comm_matrix[_my_rank][i];
 
         if (_my_rank == MASTER_RANK) {
             for (int w = 1; w < _num_workers; w++) {
-                vector<long long> row = recv_data<vector<long long>>(w);
+                vector<int> row = recv_data<vector<int>>(w);
                 for (int i = 0; i < _num_workers; i++)
                     _worker_comm_matrix[w][i] = row[i];
             }
