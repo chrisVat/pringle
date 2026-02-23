@@ -429,25 +429,16 @@ public:
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
 
         // Every worker sends its row, master collects and prints
-        vector<int> my_row(_num_workers);
-        for (int i = 0; i < _num_workers; i++)
-            my_row[i] = _worker_comm_matrix[_my_rank][i];
-
-        if (_my_rank == MASTER_RANK) {
-            for (int w = 1; w < _num_workers; w++) {
-                vector<int> row = recv_data<vector<int>>(w);
-                for (int i = 0; i < _num_workers; i++)
-                    _worker_comm_matrix[w][i] = row[i];
+        char filename[64];
+        sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
+        FILE* f = fopen(filename, "w");
+        fprintf(f, "src_vertex,dst_vertex,count\n");
+        for (auto& [src, neighbors] : _vertex_comm_map) {
+            for (auto& [dst, count] : neighbors) {
+                fprintf(f, "%d,%d,%d\n", src, dst, count);
             }
-            cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
-            for (int i = 0; i < _num_workers; i++) {
-                for (int j = 0; j < _num_workers; j++)
-                    cout << setw(10) << _worker_comm_matrix[i][j];
-                cout << endl;
-            }
-        } else {
-            send_data(my_row, MASTER_RANK);
         }
+        fclose(f);
 
         // each worker dumps its own vertex comm entries to a file
         char filename[64];

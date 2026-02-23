@@ -1,6 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <unordered_map>
 #include <map>
 #include <mpi.h>
 #include <stddef.h>
@@ -20,7 +21,11 @@ using namespace std;
 inline int _my_rank;
 inline int _num_workers = 1;
 
-inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
+// inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
+
+inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
+// usage: _vertex_comm_map[src_vertex][dst_vertex] += count
+// dict[node] -> {paired_node: count}
 
 inline long long _cross_worker_msg_num = 0;
 inline vector<vector<int>> _worker_comm_matrix;

@@ -92,11 +92,8 @@ public:
 
     void send_message(const KeyT& id, const MessageT& msg)
     {
-        HashT hashFunc;
-        if (hashFunc(id) != _my_rank) {
-            // cross-worker: track this vertex pair
-            _vertex_comm_map[{(int)this->id, (int)id}]++;
-        }
+        // Track ALL vertex communication, not just cross-worker
+        _vertex_comm_map[(int)this->id][(int)id]++;
         
         ((MessageBufT*)get_message_buffer())->add_message(id, msg);
     }
