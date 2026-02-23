@@ -346,7 +346,7 @@ public:
         message_buffer->init(vertexes);
 
         init_comm_matrix();
-        printf("DEBUG: worker %d sees _num_workers=%d, matrix size=%zu\n", _my_rank, _num_workers, _worker_comm_matrix.size());
+        //printf("DEBUG: worker %d sees _num_workers=%d, matrix size=%zu\n", _my_rank, _num_workers, _worker_comm_matrix.size());
             
         //barrier for data loading
         worker_barrier(); //@@@@@@@@@@@@@
@@ -357,7 +357,7 @@ public:
 
         init_timers();
         ResetTimer(WORKER_TIMER);
-        init_comm_matrix();  // NEW: initialize communication matrix for instrumentation
+        //init_comm_matrix();  // NEW: initialize communication matrix for instrumentation
         //supersteps
         global_step_num = 0;
         long long step_msg_num;
