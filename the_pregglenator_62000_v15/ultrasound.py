@@ -425,7 +425,7 @@ def draw_machine_boxes(ax, m_rects):
     for m, (x0, y0, W, H) in m_rects.items():
         rect = patches.Rectangle((x0, y0), W, H, fill=False, linewidth=2)
         ax.add_patch(rect)
-        ax.text(x0 + 0.15, y0 + H - 0.25, f"m{m}", fontsize=10)
+        ax.text(x0 + 0.15, y0 + H - 0.35, f"m{m}", fontsize=10)
 
 
 def draw_worker_boxes(ax, worker_rects_by_m):
@@ -433,7 +433,7 @@ def draw_worker_boxes(ax, worker_rects_by_m):
         for w, (x0, y0, W, H) in rects.items():
             rect = patches.Rectangle((x0, y0), W, H, fill=False, linewidth=1)
             ax.add_patch(rect)
-            ax.text(x0 + 0.05, y0 + H - 0.18, f"w{w}", fontsize=8)
+            ax.text(x0 + 0.05, y0 + H - 0.28, f"w{w}", fontsize=8)
 
 
 def set_bounds(ax, pos, pad=0.8):
