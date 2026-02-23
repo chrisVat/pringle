@@ -50,17 +50,6 @@ bool all_lor(bool my_copy){
 //char-level send/recv
 void pregel_send(void* buf, int size, int dst)
 {
-    //============================================
-    // update instrumentation
-    total_bytes_sent += size;
-
-    if (worker_hostnames[_my_rank] ==
-        worker_hostnames[dst])
-        intra_machine_bytes_sent += size;
-    else
-        cross_machine_bytes_sent += size;
-    //============================================
-
     MPI_Send(buf, size, MPI_CHAR, dst, 0, MPI_COMM_WORLD);
 }
 

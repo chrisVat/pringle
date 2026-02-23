@@ -68,6 +68,15 @@ public:
         int np = get_num_workers();
         int me = get_worker_id();
 
+        // Count cross-worker messages
+        for (int i = 0; i < np; i++) {
+            if (i != me) {
+                int cnt = (int)out_messages.getBuf(i).size();
+                _cross_worker_msg_num += cnt;
+                _worker_comm_matrix[me][i] += cnt;  // accumulates across all supersteps
+            }
+        }
+
         //------------------------------------------------
         // get messages from remote
         vector<vector<VertexT*> > add_buf(_num_workers);
@@ -77,6 +86,9 @@ public:
             add_buf[hash(v->id)].push_back(v);
         }
         //================================================
+
+        
+
         //exchange msgs
         //exchange vertices to add
         all_to_all_cat(out_messages.getBufs(), add_buf);

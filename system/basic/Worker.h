@@ -1,6 +1,7 @@
 #ifndef WORKER_H
 #define WORKER_H
 
+#include <iomanip>
 #include <vector>
 #include "../utils/global.h"
 #include "MessageBuffer.h"
@@ -348,6 +349,10 @@ public:
             << vertexes.size() << endl;
 
         message_buffer->init(vertexes);
+
+        init_comm_matrix();
+        //printf("DEBUG: worker %d sees _num_workers=%d, matrix size=%zu\n", _my_rank, _num_workers, _worker_comm_matrix.size());
+            
         //barrier for data loading
         worker_barrier(); //@@@@@@@@@@@@@
         StopTimer(WORKER_TIMER);
@@ -357,6 +362,7 @@ public:
 
         init_timers();
         ResetTimer(WORKER_TIMER);
+        //init_comm_matrix();  // NEW: initialize communication matrix for instrumentation
         //supersteps
         global_step_num = 0;
         long long step_msg_num;
@@ -401,39 +407,18 @@ public:
                 add_vertex(to_add[i]);
             to_add.clear();
             //===================
+
+            long long global_cross_worker_msg = all_sum_LL(_cross_worker_msg_num);
+            _cross_worker_msg_num = 0;  // reset for next superstep
+
             worker_barrier();
             StopTimer(4);
             if (_my_rank == MASTER_RANK) {
                 cout << "Superstep " << global_step_num << " done. Time elapsed: " << get_timer(4) << " seconds" << endl;
                 cout << "#msgs: " << step_msg_num << ", #vadd: " << step_vadd_num << endl;
+                cout << "#cross-worker msgs: " << global_cross_worker_msg << endl;  // NEW
             }
-
-            // ---- Aggregate instrumentation counters ----
-            long long global_total_bytes =
-                master_sum_LL(total_bytes_sent);
-
-            long long global_intra_bytes =
-                master_sum_LL(intra_machine_bytes_sent);
-
-            long long global_cross_bytes =
-                master_sum_LL(cross_machine_bytes_sent);
-
-            // ---- Print only on master ----
-            if (_my_rank == MASTER_RANK) {
-                cout << "==============================" << endl;
-                cout << "Network Instrumentation:" << endl;
-                cout << "Total Bytes Sent: " << global_total_bytes << endl;
-                cout << "Intra-Machine Bytes: " << global_intra_bytes << endl;
-                cout << "Cross-Machine Bytes: " << global_cross_bytes << endl;
-                cout << "==============================" << endl;
-            }
-
-            // Reset for next superstep
-            total_bytes_sent = 0;
-            intra_machine_bytes_sent = 0;
-            cross_machine_bytes_sent = 0;
         }
-        
         worker_barrier();
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
@@ -442,6 +427,27 @@ public:
         PrintTimer("Total Computational Time", WORKER_TIMER);
         if (_my_rank == MASTER_RANK)
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
+
+        // Every worker sends its row, master collects and prints
+        vector<int> my_row(_num_workers);
+        for (int i = 0; i < _num_workers; i++)
+            my_row[i] = _worker_comm_matrix[_my_rank][i];
+
+        if (_my_rank == MASTER_RANK) {
+            for (int w = 1; w < _num_workers; w++) {
+                vector<int> row = recv_data<vector<int>>(w);
+                for (int i = 0; i < _num_workers; i++)
+                    _worker_comm_matrix[w][i] = row[i];
+            }
+            cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
+            for (int i = 0; i < _num_workers; i++) {
+                for (int j = 0; j < _num_workers; j++)
+                    cout << setw(10) << _worker_comm_matrix[i][j];
+                cout << endl;
+            }
+        } else {
+            send_data(my_row, MASTER_RANK);
+        }
 
         // dump graph
         ResetTimer(WORKER_TIMER);

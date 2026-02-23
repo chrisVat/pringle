@@ -16,17 +16,15 @@ using namespace std;
 ///worker info
 #define MASTER_RANK 0
 
-int _my_rank;
-int _num_workers;
+inline int _my_rank;
+inline int _num_workers = 1;
 
-//============================
-///global variables for the instrumentation to track bytes sent
-long long total_bytes_sent = 0;
-long long cross_machine_bytes_sent = 0;
-long long intra_machine_bytes_sent = 0;
+inline long long _cross_worker_msg_num = 0;
+inline vector<vector<int>> _worker_comm_matrix;
 
-std::vector<std::string> worker_hostnames;
-//============================
+inline void init_comm_matrix() {
+    _worker_comm_matrix.assign(_num_workers, vector<int>(_num_workers, 0));
+}
 
 inline int get_worker_id()
 {
@@ -37,37 +35,21 @@ inline int get_num_workers()
     return _num_workers;
 }
 
-void init_workers()
+inline void init_workers()
 {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &_num_workers);
     MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
-
-    // === Collect hostnames for all workers ===
-    char hostname[MPI_MAX_PROCESSOR_NAME];
-    int len;
-    MPI_Get_processor_name(hostname, &len);
-
-    std::vector<char> all_hosts(MPI_MAX_PROCESSOR_NAME * _num_workers);
-
-    MPI_Allgather(hostname, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
-                all_hosts.data(), MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
-                MPI_COMM_WORLD);
-
-    worker_hostnames.resize(_num_workers);
-
-    for (int i = 0; i < _num_workers; i++) {
-        worker_hostnames[i] =
-            std::string(&all_hosts[i * MPI_MAX_PROCESSOR_NAME]);
-    }
+    init_comm_matrix();
+    printf("DEBUG: worker %d sees _num_workers=%d\n", _my_rank, _num_workers);
 }
 
-void worker_finalize()
+inline void worker_finalize()
 {
     MPI_Finalize();
 }
 
-void worker_barrier()
+inline void worker_barrier()
 {
     MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -112,19 +94,19 @@ typedef int VertexID;
 
 //============================
 //global variables
-int global_step_num;
+inline int global_step_num;
 inline int step_num()
 {
     return global_step_num;
 }
 
-int global_phase_num;
+inline int global_phase_num;
 inline int phase_num()
 {
     return global_phase_num;
 }
 
-void* global_message_buffer = NULL;
+inline void* global_message_buffer = NULL;
 inline void set_message_buffer(void* mb)
 {
     global_message_buffer = mb;
@@ -134,7 +116,7 @@ inline void* get_message_buffer()
     return global_message_buffer;
 }
 
-void* global_combiner = NULL;
+inline void* global_combiner = NULL;
 inline void set_combiner(void* cb)
 {
     global_combiner = cb;
@@ -144,7 +126,7 @@ inline void* get_combiner()
     return global_combiner;
 }
 
-void* global_aggregator = NULL;
+inline void* global_aggregator = NULL;
 inline void set_aggregator(void* ag)
 {
     global_aggregator = ag;
@@ -154,18 +136,18 @@ inline void* get_aggregator()
     return global_aggregator;
 }
 
-void* global_agg = NULL; //for aggregator, FinalT of last round
+inline void* global_agg = NULL; //for aggregator, FinalT of last round
 inline void* getAgg()
 {
     return global_agg;
 }
 
-int global_vnum = 0;
+inline int global_vnum = 0;
 inline int& get_vnum()
 {
     return global_vnum;
 }
-int global_active_vnum = 0;
+inline int global_active_vnum = 0;
 inline int& active_vnum()
 {
     return global_active_vnum;
@@ -177,43 +159,43 @@ enum BITS {
     WAKE_ALL_ORBIT = 2
 };
 //currently, only 3 bits are used, others can be defined by users
-char global_bor_bitmap;
+inline char global_bor_bitmap;
 
-void clearBits()
+inline void clearBits()
 {
     global_bor_bitmap = 0;
 }
 
-void setBit(int bit)
+inline void setBit(int bit)
 {
     global_bor_bitmap |= (2 << bit);
 }
 
-int getBit(int bit, char bitmap)
+inline int getBit(int bit, char bitmap)
 {
     return ((bitmap & (2 << bit)) == 0) ? 0 : 1;
 }
 
-void hasMsg()
+inline void hasMsg()
 {
     setBit(HAS_MSG_ORBIT);
 }
 
-void wakeAll()
+inline void wakeAll()
 {
     setBit(WAKE_ALL_ORBIT);
 }
 
-void forceTerminate()
+inline void forceTerminate()
 {
     setBit(FORCE_TERMINATE_ORBIT);
 }
 
 //====================================================
 //Ghost threshold
-int global_ghost_threshold;
+inline int global_ghost_threshold;
 
-void set_ghost_threshold(int tau)
+inline void set_ghost_threshold(int tau)
 {
     global_ghost_threshold = tau;
 }
