@@ -1,0 +1,297 @@
+{
+  "assignment": {
+    "0": {
+      "machine": 2,
+      "worker": 2
+    },
+    "1": {
+      "machine": 2,
+      "worker": 0
+    },
+    "10": {
+      "machine": 2,
+      "worker": 2
+    },
+    "11": {
+      "machine": 0,
+      "worker": 1
+    },
+    "12": {
+      "machine": 2,
+      "worker": 0
+    },
+    "13": {
+      "machine": 2,
+      "worker": 1
+    },
+    "14": {
+      "machine": 2,
+      "worker": 2
+    },
+    "15": {
+      "machine": 1,
+      "worker": 1
+    },
+    "16": {
+      "machine": 0,
+      "worker": 2
+    },
+    "17": {
+      "machine": 3,
+      "worker": 0
+    },
+    "18": {
+      "machine": 0,
+      "worker": 1
+    },
+    "19": {
+      "machine": 1,
+      "worker": 1
+    },
+    "2": {
+      "machine": 2,
+      "worker": 0
+    },
+    "20": {
+      "machine": 3,
+      "worker": 1
+    },
+    "21": {
+      "machine": 3,
+      "worker": 3
+    },
+    "22": {
+      "machine": 3,
+      "worker": 3
+    },
+    "23": {
+      "machine": 2,
+      "worker": 3
+    },
+    "24": {
+      "machine": 3,
+      "worker": 2
+    },
+    "25": {
+      "machine": 3,
+      "worker": 0
+    },
+    "26": {
+      "machine": 3,
+      "worker": 2
+    },
+    "27": {
+      "machine": 2,
+      "worker": 3
+    },
+    "28": {
+      "machine": 2,
+      "worker": 3
+    },
+    "29": {
+      "machine": 1,
+      "worker": 3
+    },
+    "3": {
+      "machine": 1,
+      "worker": 1
+    },
+    "30": {
+      "machine": 3,
+      "worker": 1
+    },
+    "31": {
+      "machine": 3,
+      "worker": 3
+    },
+    "32": {
+      "machine": 3,
+      "worker": 2
+    },
+    "33": {
+      "machine": 3,
+      "worker": 3
+    },
+    "34": {
+      "machine": 3,
+      "worker": 0
+    },
+    "35": {
+      "machine": 0,
+      "worker": 1
+    },
+    "36": {
+      "machine": 3,
+      "worker": 1
+    },
+    "37": {
+      "machine": 3,
+      "worker": 0
+    },
+    "38": {
+      "machine": 3,
+      "worker": 1
+    },
+    "39": {
+      "machine": 3,
+      "worker": 1
+    },
+    "4": {
+      "machine": 2,
+      "worker": 0
+    },
+    "40": {
+      "machine": 1,
+      "worker": 3
+    },
+    "41": {
+      "machine": 2,
+      "worker": 1
+    },
+    "42": {
+      "machine": 1,
+      "worker": 3
+    },
+    "43": {
+      "machine": 2,
+      "worker": 3
+    },
+    "44": {
+      "machine": 0,
+      "worker": 3
+    },
+    "45": {
+      "machine": 1,
+      "worker": 0
+    },
+    "46": {
+      "machine": 0,
+      "worker": 1
+    },
+    "47": {
+      "machine": 1,
+      "worker": 0
+    },
+    "48": {
+      "machine": 0,
+      "worker": 2
+    },
+    "49": {
+      "machine": 1,
+      "worker": 2
+    },
+    "5": {
+      "machine": 1,
+      "worker": 1
+    },
+    "50": {
+      "machine": 1,
+      "worker": 3
+    },
+    "51": {
+      "machine": 1,
+      "worker": 3
+    },
+    "52": {
+      "machine": 1,
+      "worker": 2
+    },
+    "53": {
+      "machine": 1,
+      "worker": 0
+    },
+    "54": {
+      "machine": 0,
+      "worker": 3
+    },
+    "55": {
+      "machine": 1,
+      "worker": 0
+    },
+    "56": {
+      "machine": 0,
+      "worker": 2
+    },
+    "57": {
+      "machine": 1,
+      "worker": 2
+    },
+    "58": {
+      "machine": 0,
+      "worker": 2
+    },
+    "59": {
+      "machine": 1,
+      "worker": 2
+    },
+    "6": {
+      "machine": 1,
+      "worker": 1
+    },
+    "60": {
+      "machine": 0,
+      "worker": 3
+    },
+    "61": {
+      "machine": 0,
+      "worker": 0
+    },
+    "62": {
+      "machine": 0,
+      "worker": 1
+    },
+    "63": {
+      "machine": 3,
+      "worker": 2
+    },
+    "64": {
+      "machine": 2,
+      "worker": 1
+    },
+    "65": {
+      "machine": 3,
+      "worker": 3
+    },
+    "66": {
+      "machine": 0,
+      "worker": 0
+    },
+    "67": {
+      "machine": 0,
+      "worker": 3
+    },
+    "68": {
+      "machine": 0,
+      "worker": 0
+    },
+    "69": {
+      "machine": 2,
+      "worker": 1
+    },
+    "7": {
+      "machine": 2,
+      "worker": 0
+    },
+    "8": {
+      "machine": 2,
+      "worker": 2
+    },
+    "9": {
+      "machine": 0,
+      "worker": 0
+    }
+  },
+  "stats": {
+    "machine_cut_weight": 3327.0,
+    "nodes_per_machine": 20,
+    "nodes_per_worker": 5,
+    "num_machines": 4,
+    "num_nodes": 70,
+    "workers_per_machine": [
+      4,
+      4,
+      4,
+      4
+    ]
+  }
+}
