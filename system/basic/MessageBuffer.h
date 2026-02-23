@@ -77,7 +77,6 @@ public:
             }
         }
 
-        int me = get_worker_id();
         for (int i = 0; i < np; i++) {
             if (i != me) {
                 Vec& buf = out_messages.getBuf(i);
