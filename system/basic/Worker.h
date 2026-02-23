@@ -449,6 +449,16 @@ public:
             send_data(my_row, MASTER_RANK);
         }
 
+        // each worker dumps its own vertex comm entries to a file
+        char filename[64];
+        sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
+        FILE* f = fopen(filename, "w");
+        fprintf(f, "src_vertex,dst_vertex,count\n");
+        for (auto& entry : _vertex_comm_map) {
+            fprintf(f, "%d,%d,%d\n", entry.first.first, entry.first.second, entry.second);
+        }
+        fclose(f);
+
         // dump graph
         ResetTimer(WORKER_TIMER);
         dump_partition(params.output_path.c_str());
