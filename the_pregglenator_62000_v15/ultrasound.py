@@ -262,7 +262,7 @@ def comm_breakdown_directed(comm, machine_of, worker_of):
     return between_machines, within_machine_between_workers, within_worker
 
 
-def estimate_total_comm_time_seconds(between_machine, within_machine_between_worker, network_us=400.0, process_us=15.0):
+def estimate_total_comm_time_seconds(between_machine, within_machine_between_worker, network_us=300.0, process_us=15.0):
     """
     Crude estimate:
       total_time = between_machine * network_us + within_machine_between_worker * process_us
@@ -627,6 +627,7 @@ def _fmt_time_s(x):
 
 
 from collections import defaultdict
+import statistics
 
 def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_us=400.0, process_us=15.0):
     """
@@ -634,13 +635,17 @@ def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_u
     """
     rows = {}
     for name, (m_of, w_of) in assignments.items():
-        # 1. Get the raw cut totals using your existing function
+        # 1. Base Raw Breakdown
         bm, bw, ww = comm_breakdown_directed(comm_loaded, m_of, w_of)
         
-        # 2. Calculate Straggler Time and Max Compute
-        machine_net_cost = defaultdict(float)
+        # 2. Sequential/Serial Time Estimate (Legacy)
+        serial_t_s = (bm * network_us + bw * process_us) / 1e6
+        
+        # 3. Per-machine / Parallel Tracking
+        machine_packets = defaultdict(set)
         machine_ipc_cost = defaultdict(float)
         machine_compute = defaultdict(float)
+        machine_net_msgs = defaultdict(float)
         
         for u, nbrs in comm_loaded.items():
             u_i = int(u)
@@ -655,35 +660,52 @@ def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_u
                 wv = w_of[v_i]
                 wf = float(w)
                 
-                # Compute load is traffic in + out
                 machine_compute[mu] += wf
                 machine_compute[mv] += wf
                 
-                # Comm costs attributed to the sender
                 if mu != mv:
-                    machine_net_cost[mu] += wf
+                    machine_packets[mu].add(mv)
+                    machine_net_msgs[mu] += wf
                 elif wu != wv:
                     machine_ipc_cost[mu] += wf
                     
-        # Find the absolute slowest machine
-        max_time_s = 0.0
-        for m in set(machine_net_cost.keys()) | set(machine_ipc_cost.keys()):
-            m_time = (machine_net_cost[m] * network_us + machine_ipc_cost[m] * process_us) / 1e6
-            if m_time > max_time_s:
-                max_time_s = m_time
-                
-        max_comp = max(machine_compute.values()) if machine_compute else 0.0
+        # Calculate individual machine times for Parallel/Straggler view
+        m_times = {}
+        all_ms = sorted(list(set(m_of)))
+        for m in all_ms:
+            pkts = len(machine_packets[m])
+            ipc = machine_ipc_cost[m]
+            m_times[m] = (pkts * network_us + ipc * process_us) / 1e6
+
+        times_list = list(m_times.values())
+        max_t = max(times_list) if times_list else 0
+        avg_t = sum(times_list) / len(times_list) if times_list else 0
+        imbalance = max_t / avg_t if avg_t > 0 else 1.0
         
+        peak_m = -1
+        max_comp = 0.0
+        if machine_compute:
+            peak_m = max(machine_compute, key=machine_compute.get)
+            max_comp = machine_compute[peak_m]
+
         rows[name] = {
             "between_machine": bm,
             "between_worker": bw,
             "within_worker": ww,
-            "time_s": max_time_s,
+            "serial_time_s": serial_t_s,
+            "parallel_time_s": max_t,
+            "m_times": m_times,
+            "avg_t": avg_t,
+            "imbalance": imbalance,
             "max_compute": max_comp,
+            "peak_m_packets": len(machine_packets[peak_m]),
+            "peak_m_net_msgs": machine_net_msgs[peak_m],
+            "peak_m_ipc": machine_ipc_cost[peak_m]
         }
 
+    # --- FINAL PRINTING BLOCK ---
     print("\n=== COMPARISON (directed comm totals, evaluated on ORIGINAL comm) ===")
-    print("Between-machine communication:")
+    print("Between-machine communication (Raw Message Count):")
     for name in assignments.keys():
         print(f"  {name:<15} {_fmt_int(rows[name]['between_machine'])}")
 
@@ -695,23 +717,38 @@ def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_u
     for name in assignments.keys():
         print(f"  {name:<15} {_fmt_int(rows[name]['within_worker'])}")
 
-    print("\n=== TOTAL COMMUNICATION TIME ESTIMATE (serial) ===")
+    print("\n=== TOTAL COMMUNICATION TIME ESTIMATE (theoretical serial time) ===")
     print(f"Assumptions: network={network_us:.1f}us per unit, process={process_us:.1f}us per unit")
     for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_time_s(rows[name]['time_s'])}")
+        print(f"  {name:<15} {_fmt_time_s(rows[name]['serial_time_s'])}")
+
+    print("\n=== PER-MACHINE COMMUNICATION TIME (Parallel Packet + IPC) ===")
+    for name in assignments.keys():
+        print(f"  {name.upper()}:")
+        m_data = rows[name]['m_times']
+        for m_id, t in m_data.items():
+            print(f"   m{m_id}: {_fmt_time_s(t)}", end=", ")
+        print(f"   {'Avg:':<8} {_fmt_time_s(rows[name]['avg_t'])}")
+        print(f"   {'Imbal:':<8} {rows[name]['imbalance']:.3f}x")
+
+    print("\n=== PARALLEL COMMUNICATION TIME (assumes perfect combiners and network parallelism ===")
+    print(f"Assumptions: network={network_us:.1f}us per PACKET, process={process_us:.1f}us per MSG")
+    for name in assignments.keys():
+        print(f"  {name:<15} {_fmt_time_s(rows[name]['parallel_time_s'])}")
 
     print("\n=== Peak message load on a single machine ===")
+    print("Format: Total Msgs (Raw Net Msgs, Combined Packets, IPC Msgs)")
     for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_int(rows[name]['max_compute'])}")
+        r = rows[name]
+        print(f"  {name:<15} {_fmt_int(r['max_compute']):>8} (NetMsgs: {_fmt_int(r['peak_m_net_msgs'])}, Pkts: {int(r['peak_m_packets'])}, IPC: {_fmt_int(r['peak_m_ipc'])})")
 
     if ref_name in rows:
         ref = rows[ref_name]
-        print(f"\n=== RELATIVE TO {ref_name.upper()} ===")
+        print(f"\n=== RELATIVE TO {ref_name.upper()} (Sync Barrier Time) ===")
         for name in assignments.keys():
-            if name == ref_name:
-                continue
-            r = rows[name]["time_s"] / max(1e-12, ref["time_s"])
-            print(f"  {name:<15} time_ratio={r:.3f}x (lower is better)")
+            if name == ref_name: continue
+            ratio = rows[name]["parallel_time_s"] / max(1e-12, ref["parallel_time_s"])
+            print(f"  {name:<15} bottleneck_ratio={ratio:.3f}x (lower is better)")
 
     return rows
 
