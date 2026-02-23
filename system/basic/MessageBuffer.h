@@ -77,6 +77,18 @@ public:
             }
         }
 
+        int me = get_worker_id();
+        for (int i = 0; i < np; i++) {
+            if (i != me) {
+                Vec& buf = out_messages.getBuf(i);
+                for (auto& entry : buf) {
+                    // entry.key is the destination vertex
+                    // we don't have src vertex here directly, so track dst worker -> dst vertex
+                    _vertex_comm_map[{me, (int)entry.key}]++;
+                }
+            }
+        }
+
         //------------------------------------------------
         // get messages from remote
         vector<vector<VertexT*> > add_buf(_num_workers);
