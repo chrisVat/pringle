@@ -428,25 +428,18 @@ public:
         if (_my_rank == MASTER_RANK)
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
 
-        // Every worker sends its row, master collects and prints
-        char filename[64];
-        sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
-        FILE* f = fopen(filename, "w");
-        fprintf(f, "src_vertex,dst_vertex,count\n");
-        for (auto& [src, neighbors] : _vertex_comm_map) {
-            for (auto& [dst, count] : neighbors) {
-                fprintf(f, "%d,%d,%d\n", src, dst, count);
-            }
-        }
-        fclose(f);
-
         // each worker dumps its own vertex comm entries to a file
         char filename[64];
         sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
         FILE* f = fopen(filename, "w");
         fprintf(f, "src_vertex,dst_vertex,count\n");
-        for (auto& entry : _vertex_comm_map) {
-            fprintf(f, "%d,%d,%d\n", entry.first.first, entry.first.second, entry.second);
+        for (auto& outer : _vertex_comm_map) {
+            int src = outer.first;
+            for (auto& inner : outer.second) {
+                int dst = inner.first;
+                int count = inner.second;
+                fprintf(f, "%d,%d,%d\n", src, dst, count);
+            }
         }
         fclose(f);
 
