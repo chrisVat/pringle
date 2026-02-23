@@ -1,6 +1,19 @@
 """
-visualizer and helper tool for pringle. 
-builds a synthetic graph, runs pringle on it and visualizes the output vs random partition
+visualizer and helper tool for pringle.
+builds a synthetic graph, runs pringle on it and visualizes the output.
+
+it compares 3 partitioning strategies:
+  1) random baseline
+  2) metis (topology-only): same edges, ignores comm volume (all existing edges weight=1)
+  3) ours (weighted): the normal pregglenator run
+
+it prints comm totals (evaluated on the ORIGINAL directed comm):
+  - between-machine communication
+  - within-machine between-worker communication
+
+and shows TWO 2x3 figures:
+  A) random vs ours
+  B) metis(topology) vs ours
 """
 
 import argparse
@@ -11,12 +24,14 @@ import random
 import subprocess
 import sys
 from collections import defaultdict
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 
-
-# build a fake graph 
+# ============================================================
+# build a fake graph: directed comm[src][dst] = weight
+# ============================================================
 def make_fake_comm_trace(
     n,
     num_machines,
@@ -84,8 +99,9 @@ def load_comm_json(path):
     return comm
 
 
-
+# ============================================================
 # load preggle output from json. yah its kinda gross
+# ============================================================
 def load_assignment_json(path):
     with open(path, "r") as f:
         payload = json.load(f)
@@ -101,8 +117,9 @@ def load_assignment_json(path):
     return machine_of, worker_of, stats
 
 
-
+# ============================================================
 # graph helpers
+# ============================================================
 def infer_num_nodes(comm, explicit_n=None):
     if explicit_n is not None:
         return explicit_n
@@ -153,8 +170,25 @@ def top_edges_undirected(und_adj, top_k=1500, min_w=1.0):
     return edges
 
 
+def make_topology_only_comm_from_undirected(und_adj):
+    """
+    Build a sparse directed comm dict that encodes only topology:
+    for every undirected edge (u,v), emit a single directed edge u->v with weight=1.
+    Then pregglenator will symmetrize anyway.
+    """
+    topo = defaultdict(dict)
+    n = len(und_adj)
+    for u in range(n):
+        for v in und_adj[u].keys():
+            if v <= u:
+                continue
+            topo[u][v] = 1.0
+    return {int(s): {int(t): float(w) for t, w in nbrs.items()} for s, nbrs in topo.items()}
 
-# random baseline 
+
+# ============================================================
+# random baseline
+# ============================================================
 def random_capacity_partition(n, num_machines, nodes_per_machine, nodes_per_worker, seed=0):
     rng = random.Random(seed)
 
@@ -183,13 +217,11 @@ def random_capacity_partition(n, num_machines, nodes_per_machine, nodes_per_work
         if not bucket:
             continue
 
-        # chunk into workers
         num_workers = max(1, int(math.ceil(len(bucket) / float(nodes_per_worker))))
         for i, u in enumerate(bucket):
             w = i // nodes_per_worker
             worker_of[u] = min(w, num_workers - 1)
 
-        # strict check
         counts = defaultdict(int)
         for u in bucket:
             counts[worker_of[u]] += 1
@@ -199,8 +231,9 @@ def random_capacity_partition(n, num_machines, nodes_per_machine, nodes_per_work
     return machine_of, worker_of
 
 
-
-# vis
+# ============================================================
+# metrics: evaluate on ORIGINAL directed comm
+# ============================================================
 def comm_breakdown_directed(comm, machine_of, worker_of):
     between_machines = 0.0
     within_machine_between_workers = 0.0
@@ -223,6 +256,9 @@ def comm_breakdown_directed(comm, machine_of, worker_of):
     return between_machines, within_machine_between_workers, within_worker
 
 
+# ============================================================
+# layout + remapping into boxes
+# ============================================================
 def initial_layout(und_adj, edges_for_layout, seed=0):
     try:
         import networkx as nx
@@ -356,22 +392,22 @@ def groups_by_worker_within_machine(n, machine_of, worker_of):
     return dict(g)
 
 
+# ============================================================
+# drawing
+# ============================================================
 def draw_edges(ax, edges, pos, max_w, alpha_min=0.01, alpha_max=0.8):
     """
-    Make weak edges light and strong edges dark:
-      - alpha scales with log(weight)
-      - linewidth also scales with weight (mildly)
+    weak edges fade out, strong edges pop.
+    alpha scales with log(weight), linewidth scales mildly too.
     """
-    # log scale so weights with heavy tails don't dominate
     denom = math.log(1.0 + float(max_w)) if max_w > 0 else 1.0
 
     for u, v, w in edges:
         x1, y1 = pos[u]
         x2, y2 = pos[v]
 
-        wn = math.log(1.0 + float(w)) / denom  # 0..1 roughly
+        wn = math.log(1.0 + float(w)) / denom
         a = alpha_min + (alpha_max - alpha_min) * (wn ** 1.7)
-
         lw = 0.10 + 2.6 * (wn ** 1.2)
 
         ax.plot([x1, x2], [y1, y2], linewidth=lw, alpha=a)
@@ -408,102 +444,105 @@ def set_bounds(ax, pos, pad=0.8):
     ax.axis("off")
 
 
+# ============================================================
+# 2x3 figure: top strategy vs bottom strategy
+# ============================================================
 def visualize_compare(
     und_adj,
     edges,
-    rnd_machine,
-    rnd_worker,
-    met_machine,
-    met_worker,
+    top_machine,
+    top_worker,
+    bot_machine,
+    bot_worker,
     num_machines,
     seed=0,
+    top_label="top",
+    bot_label="bottom",
 ):
     n = len(und_adj)
 
     base_pos = initial_layout(und_adj, edges_for_layout=edges, seed=seed)
-
     m_rects = machine_rects(num_machines)
-
-    # random: machines then workers
-    rnd_groups_m = groups_by_machine(n, rnd_machine)
-    rnd_pos_m = remap_into_boxes(base_pos, rnd_groups_m, m_rects, seed=seed + 1)
-
-    rnd_worker_ids_by_m = defaultdict(set)
-    for u in range(n):
-        rnd_worker_ids_by_m[rnd_machine[u]].add(rnd_worker[u])
-    rnd_w_rects_by_m = {m: worker_rects_for_machine(rnd_worker_ids_by_m[m], m_rects[m]) for m in m_rects.keys()}
-
-    rnd_groups_w = groups_by_worker_within_machine(n, rnd_machine, rnd_worker)
-    rnd_rects_mw = {}
-    for (m, w) in rnd_groups_w.keys():
-        rnd_rects_mw[(m, w)] = rnd_w_rects_by_m[m][w]
-    rnd_pos_w = remap_into_boxes(rnd_pos_m, rnd_groups_w, rnd_rects_mw, seed=seed + 2)
-
-    # ours: machines then workers
-    met_groups_m = groups_by_machine(n, met_machine)
-    met_pos_m = remap_into_boxes(base_pos, met_groups_m, m_rects, seed=seed + 3)
-
-    met_worker_ids_by_m = defaultdict(set)
-    for u in range(n):
-        met_worker_ids_by_m[met_machine[u]].add(met_worker[u])
-    met_w_rects_by_m = {m: worker_rects_for_machine(met_worker_ids_by_m[m], m_rects[m]) for m in m_rects.keys()}
-
-    met_groups_w = groups_by_worker_within_machine(n, met_machine, met_worker)
-    met_rects_mw = {}
-    for (m, w) in met_groups_w.keys():
-        met_rects_mw[(m, w)] = met_w_rects_by_m[m][w]
-    met_pos_w = remap_into_boxes(met_pos_m, met_groups_w, met_rects_mw, seed=seed + 4)
-
     max_w = max([w for _, _, w in edges], default=1.0)
 
+    # ----- top: machines then workers
+    top_groups_m = groups_by_machine(n, top_machine)
+    top_pos_m = remap_into_boxes(base_pos, top_groups_m, m_rects, seed=seed + 1)
+
+    top_worker_ids_by_m = defaultdict(set)
+    for u in range(n):
+        top_worker_ids_by_m[top_machine[u]].add(top_worker[u])
+    top_w_rects_by_m = {m: worker_rects_for_machine(top_worker_ids_by_m[m], m_rects[m]) for m in m_rects.keys()}
+
+    top_groups_w = groups_by_worker_within_machine(n, top_machine, top_worker)
+    top_rects_mw = {}
+    for (m, w) in top_groups_w.keys():
+        top_rects_mw[(m, w)] = top_w_rects_by_m[m][w]
+    top_pos_w = remap_into_boxes(top_pos_m, top_groups_w, top_rects_mw, seed=seed + 2)
+
+    # ----- bottom: machines then workers
+    bot_groups_m = groups_by_machine(n, bot_machine)
+    bot_pos_m = remap_into_boxes(base_pos, bot_groups_m, m_rects, seed=seed + 3)
+
+    bot_worker_ids_by_m = defaultdict(set)
+    for u in range(n):
+        bot_worker_ids_by_m[bot_machine[u]].add(bot_worker[u])
+    bot_w_rects_by_m = {m: worker_rects_for_machine(bot_worker_ids_by_m[m], m_rects[m]) for m in m_rects.keys()}
+
+    bot_groups_w = groups_by_worker_within_machine(n, bot_machine, bot_worker)
+    bot_rects_mw = {}
+    for (m, w) in bot_groups_w.keys():
+        bot_rects_mw[(m, w)] = bot_w_rects_by_m[m][w]
+    bot_pos_w = remap_into_boxes(bot_pos_m, bot_groups_w, bot_rects_mw, seed=seed + 4)
+
+    # plot
     fig, axs = plt.subplots(2, 3, figsize=(18, 10))
     titles = ["initial graph", "machine boxes", "worker boxes"]
-    row_names = ["random baseline", "comm-based (pregglenator)"]
 
-    # Row 0: random baseline
-    axs[0][0].set_title(f"{row_names[0]}: {titles[0]}")
+    # Top row
+    axs[0][0].set_title(f"{top_label}: {titles[0]}")
     draw_edges(axs[0][0], edges, base_pos, max_w)
-    draw_nodes(axs[0][0], base_pos, rnd_machine, node_size=18)
+    draw_nodes(axs[0][0], base_pos, top_machine, node_size=18)
     set_bounds(axs[0][0], base_pos)
 
-    axs[0][1].set_title(f"{row_names[0]}: {titles[1]}")
+    axs[0][1].set_title(f"{top_label}: {titles[1]}")
     draw_machine_boxes(axs[0][1], m_rects)
-    draw_edges(axs[0][1], edges, rnd_pos_m, max_w)
-    draw_nodes(axs[0][1], rnd_pos_m, rnd_machine, node_size=18)
-    set_bounds(axs[0][1], rnd_pos_m)
+    draw_edges(axs[0][1], edges, top_pos_m, max_w)
+    draw_nodes(axs[0][1], top_pos_m, top_machine, node_size=18)
+    set_bounds(axs[0][1], top_pos_m)
 
-    axs[0][2].set_title(f"{row_names[0]}: {titles[2]}")
+    axs[0][2].set_title(f"{top_label}: {titles[2]}")
     draw_machine_boxes(axs[0][2], m_rects)
-    draw_worker_boxes(axs[0][2], rnd_w_rects_by_m)
-    draw_edges(axs[0][2], edges, rnd_pos_w, max_w)
-    draw_nodes(axs[0][2], rnd_pos_w, rnd_machine, node_size=18)
-    set_bounds(axs[0][2], rnd_pos_w)
+    draw_worker_boxes(axs[0][2], top_w_rects_by_m)
+    draw_edges(axs[0][2], edges, top_pos_w, max_w)
+    draw_nodes(axs[0][2], top_pos_w, top_machine, node_size=18)
+    set_bounds(axs[0][2], top_pos_w)
 
-    # Row 1: comm-based
-    axs[1][0].set_title(f"{row_names[1]}: {titles[0]}")
+    # Bottom row
+    axs[1][0].set_title(f"{bot_label}: {titles[0]}")
     draw_edges(axs[1][0], edges, base_pos, max_w)
-    draw_nodes(axs[1][0], base_pos, met_machine, node_size=18)
+    draw_nodes(axs[1][0], base_pos, bot_machine, node_size=18)
     set_bounds(axs[1][0], base_pos)
 
-    axs[1][1].set_title(f"{row_names[1]}: {titles[1]}")
+    axs[1][1].set_title(f"{bot_label}: {titles[1]}")
     draw_machine_boxes(axs[1][1], m_rects)
-    draw_edges(axs[1][1], edges, met_pos_m, max_w)
-    draw_nodes(axs[1][1], met_pos_m, met_machine, node_size=18)
-    set_bounds(axs[1][1], met_pos_m)
+    draw_edges(axs[1][1], edges, bot_pos_m, max_w)
+    draw_nodes(axs[1][1], bot_pos_m, bot_machine, node_size=18)
+    set_bounds(axs[1][1], bot_pos_m)
 
-    axs[1][2].set_title(f"{row_names[1]}: {titles[2]}")
+    axs[1][2].set_title(f"{bot_label}: {titles[2]}")
     draw_machine_boxes(axs[1][2], m_rects)
-    draw_worker_boxes(axs[1][2], met_w_rects_by_m)
-    draw_edges(axs[1][2], edges, met_pos_w, max_w)
-    draw_nodes(axs[1][2], met_pos_w, met_machine, node_size=18)
-    set_bounds(axs[1][2], met_pos_w)
+    draw_worker_boxes(axs[1][2], bot_w_rects_by_m)
+    draw_edges(axs[1][2], edges, bot_pos_w, max_w)
+    draw_nodes(axs[1][2], bot_pos_w, bot_machine, node_size=18)
+    set_bounds(axs[1][2], bot_pos_w)
 
     plt.tight_layout()
     plt.show()
 
 
 # ============================================================
-# 10) Run pregglenator
+# Run pregglenator
 # ============================================================
 def run_pregglenator(pregglenator_path, comm_json_path, out_path, args):
     pregg = os.path.abspath(pregglenator_path)
@@ -556,12 +595,14 @@ def run_pregglenator(pregglenator_path, comm_json_path, out_path, args):
     return outp
 
 
-
+# ============================================================
+# main
+# ============================================================
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--pregglenator", default="pregglenator.py")
 
-    # Defaults you asked for
+    # Defaults
     ap.add_argument("--n", type=int, default=70)
     ap.add_argument("--num_machines", type=int, default=4)
     ap.add_argument("--nodes_per_machine", type=int, default=20)
@@ -602,15 +643,16 @@ def main():
     )
     dump_comm_json(comm, args.tmp_comm)
 
-    # 2) run pregglenator
-    out_path = run_pregglenator(args.pregglenator, args.tmp_comm, args.tmp_out, args)
+    # 2) run ours (weighted) via pregglenator
+    ours_out_path = run_pregglenator(args.pregglenator, args.tmp_comm, args.tmp_out, args)
 
-    # 3) load assignment + build random baseline
+    # 3) build undirected + edges for visualization
     comm_loaded = load_comm_json(args.tmp_comm)
     n = infer_num_nodes(comm_loaded, explicit_n=args.n)
     und_adj = symmetrize_to_undirected(comm_loaded, n)
     edges = top_edges_undirected(und_adj, top_k=args.top_k_edges, min_w=args.min_edge_weight)
 
+    # 4) random baseline assignment
     rnd_machine, rnd_worker = random_capacity_partition(
         n=n,
         num_machines=args.num_machines,
@@ -619,36 +661,68 @@ def main():
         seed=args.seed,
     )
 
-    met_machine_map, met_worker_map, stats = load_assignment_json(out_path)
-    met_machine = [met_machine_map[u] for u in range(n)]
-    met_worker = [met_worker_map[u] for u in range(n)]
+    # 5) ours assignment from pregglenator output
+    ours_machine_map, ours_worker_map, ours_stats = load_assignment_json(ours_out_path)
+    ours_machine = [ours_machine_map[u] for u in range(n)]
+    ours_worker = [ours_worker_map[u] for u in range(n)]
 
-    # 4) comparisons (the two you requested)
+    # 6) metis(topology-only): write a comm file with all weights=1 and run pregglenator again
+    topo_comm = make_topology_only_comm_from_undirected(und_adj)
+    topo_comm_path = "_tmp_comm_topology.json"
+    topo_out_path = "_tmp_assignment_topology.json"
+    dump_comm_json(topo_comm, topo_comm_path)
+    topo_assignment_path = run_pregglenator(args.pregglenator, topo_comm_path, topo_out_path, args)
+
+    topo_machine_map, topo_worker_map, topo_stats = load_assignment_json(topo_assignment_path)
+    topo_machine = [topo_machine_map[u] for u in range(n)]
+    topo_worker = [topo_worker_map[u] for u in range(n)]
+
+    # 7) comparisons (evaluate on ORIGINAL directed comm)
     rnd_bm, rnd_bw, _ = comm_breakdown_directed(comm_loaded, rnd_machine, rnd_worker)
-    met_bm, met_bw, _ = comm_breakdown_directed(comm_loaded, met_machine, met_worker)
+    topo_bm, topo_bw, _ = comm_breakdown_directed(comm_loaded, topo_machine, topo_worker)
+    ours_bm, ours_bw, _ = comm_breakdown_directed(comm_loaded, ours_machine, ours_worker)
 
-    print("\n=== COMPARISON (directed comm totals) ===")
+    print("\n=== COMPARISON (directed comm totals, evaluated on ORIGINAL comm) ===")
     print("Between-machine communication:")
-    print("  random:", int(rnd_bm))
-    print("  ours:  ", int(met_bm))
-    print("Within-machine BETWEEN-worker communication:")
-    print("  random:", int(rnd_bw))
-    print("  ours:  ", int(met_bw))
+    print("  random:         ", int(rnd_bm))
+    print("  metis(topology):", int(topo_bm))
+    print("  ours(weighted): ", int(ours_bm))
 
-    # 5) visualize (2x3)
+    print("Within-machine BETWEEN-worker communication:")
+    print("  random:         ", int(rnd_bw))
+    print("  metis(topology):", int(topo_bw))
+    print("  ours(weighted): ", int(ours_bw))
+
+    # 8) two figures
     visualize_compare(
         und_adj=und_adj,
         edges=edges,
-        rnd_machine=rnd_machine,
-        rnd_worker=rnd_worker,
-        met_machine=met_machine,
-        met_worker=met_worker,
+        top_machine=rnd_machine,
+        top_worker=rnd_worker,
+        bot_machine=ours_machine,
+        bot_worker=ours_worker,
         num_machines=args.num_machines,
         seed=args.seed,
+        top_label="random baseline",
+        bot_label="ours (weighted)",
     )
 
+    visualize_compare(
+        und_adj=und_adj,
+        edges=edges,
+        top_machine=topo_machine,
+        top_worker=topo_worker,
+        bot_machine=ours_machine,
+        bot_worker=ours_worker,
+        num_machines=args.num_machines,
+        seed=args.seed,
+        top_label="metis (topology-only)",
+        bot_label="ours (weighted)",
+    )
+
+    # cleanup
     if not args.no_cleanup:
-        for p in [args.tmp_comm, args.tmp_out]:
+        for p in [args.tmp_comm, args.tmp_out, topo_comm_path, topo_out_path]:
             try:
                 os.remove(p)
             except OSError:
