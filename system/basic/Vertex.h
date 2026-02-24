@@ -92,6 +92,9 @@ public:
 
     void send_message(const KeyT& id, const MessageT& msg)
     {
+        // Track ALL vertex communication, not just cross-worker
+        _vertex_comm_map[(int)this->id][(int)id]++;
+        
         ((MessageBufT*)get_message_buffer())->add_message(id, msg);
     }
 
