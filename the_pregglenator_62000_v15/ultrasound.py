@@ -7,19 +7,13 @@ partitioning strategies:
   2) metis (topology-only): same edges, ignores comm volume (all existing edges weight=1)
   3) ours (weighted): the normal pregglenator run (two-level hierarchical)
   4) one-shot (two-level-aware): pregglenator_oneshot.py
-  5) hypergraph (broadcast-aware): pregglenator_gamer_mode.py  (the v19 script you asked for)
+  5) reduce-max output: pregglenator_gamer_mode.py
+  6) reduce-max output strict workers: pregglenator_gamer_mode_strict.py
+  7) metis relaxed: pregglenator_loose.py
 
-it prints comm totals (evaluated on the ORIGINAL directed comm):
-  - between-machine communication
-  - within-machine between-worker communication
-  - within-worker communication
-
-and prints a simple total communication time estimate:
-  - network: 400 us per "message unit"
-  - process: 15 us per "message unit"
-
-and shows ONE 1x3 figure per method (instead of 2x3 comparisons):
-  columns: [initial graph] [machine boxes] [worker boxes]
+Key feature:
+  - runner auto-filters CLI args by calling each script with --help and removing
+    unsupported flags. This prevents the exact failure you hit.
 """
 
 import argparse
@@ -177,11 +171,6 @@ def top_edges_undirected(und_adj, top_k=1500, min_w=1.0):
 
 
 def make_topology_only_comm_from_undirected(und_adj):
-    """
-    Build a sparse directed comm dict that encodes only topology:
-    for every undirected edge (u,v), emit a single directed edge u->v with weight=1.
-    Then pregglenator will symmetrize anyway.
-    """
     topo = defaultdict(dict)
     n = len(und_adj)
     for u in range(n):
@@ -262,14 +251,127 @@ def comm_breakdown_directed(comm, machine_of, worker_of):
     return between_machines, within_machine_between_workers, within_worker
 
 
-def estimate_total_comm_time_seconds(between_machine, within_machine_between_worker, network_us=300.0, process_us=15.0):
-    """
-    Crude estimate:
-      total_time = between_machine * network_us + within_machine_between_worker * process_us
-    Treats the comm weights as "message units".
-    """
-    total_us = between_machine * network_us + within_machine_between_worker * process_us
-    return total_us / 1e6
+def _fmt_int(x):
+    try:
+        return f"{int(round(float(x))):,}"
+    except Exception:
+        return str(x)
+
+
+def _fmt_time_s(x):
+    return f"{x:.3f}s"
+
+
+def print_comparison(comm_loaded, assignments, ref_name="one_shot", network_us=400.0, process_us=15.0):
+    rows = {}
+    for name, (m_of, w_of) in assignments.items():
+        bm, bw, ww = comm_breakdown_directed(comm_loaded, m_of, w_of)
+
+        serial_t_s = (bm * network_us + bw * process_us) / 1e6
+
+        machine_packets = defaultdict(set)
+        machine_ipc_cost = defaultdict(float)
+        machine_compute = defaultdict(float)
+        machine_net_msgs = defaultdict(float)
+
+        for u, nbrs in comm_loaded.items():
+            u_i = int(u)
+            if u_i >= len(m_of):
+                continue
+            mu = m_of[u_i]
+            wu = w_of[u_i]
+
+            for v, w in nbrs.items():
+                v_i = int(v)
+                if v_i >= len(m_of):
+                    continue
+                mv = m_of[v_i]
+                wv = w_of[v_i]
+                wf = float(w)
+
+                machine_compute[mu] += wf
+                machine_compute[mv] += wf
+
+                if mu != mv:
+                    machine_packets[mu].add(mv)
+                    machine_net_msgs[mu] += wf
+                elif wu != wv:
+                    machine_ipc_cost[mu] += wf
+
+        m_times = {}
+        all_ms = sorted(list(set(m_of)))
+        for m in all_ms:
+            pkts = len(machine_packets[m])
+            ipc = machine_ipc_cost[m]
+            m_times[m] = (pkts * network_us + ipc * process_us) / 1e6
+
+        times_list = list(m_times.values())
+        max_t = max(times_list) if times_list else 0
+        avg_t = sum(times_list) / len(times_list) if times_list else 0
+        imbalance = max_t / avg_t if avg_t > 0 else 1.0
+
+        peak_m = -1
+        max_comp = 0.0
+        if machine_compute:
+            peak_m = max(machine_compute, key=machine_compute.get)
+            max_comp = machine_compute[peak_m]
+
+        rows[name] = {
+            "between_machine": bm,
+            "between_worker": bw,
+            "within_worker": ww,
+            "serial_time_s": serial_t_s,
+            "parallel_time_s": max_t,
+            "avg_t": avg_t,
+            "imbalance": imbalance,
+            "max_compute": max_comp,
+            "peak_m_packets": len(machine_packets[peak_m]) if peak_m != -1 else 0,
+            "peak_m_net_msgs": machine_net_msgs[peak_m] if peak_m != -1 else 0.0,
+            "peak_m_ipc": machine_ipc_cost[peak_m] if peak_m != -1 else 0.0,
+        }
+
+    print("\n=== COMPARISON (directed comm totals, evaluated on ORIGINAL comm) ===")
+    print("Between-machine communication (Raw Message Count):")
+    for name in assignments.keys():
+        print(f"  {name:<24} {_fmt_int(rows[name]['between_machine'])}")
+
+    print("Within-machine BETWEEN-worker communication:")
+    for name in assignments.keys():
+        print(f"  {name:<24} {_fmt_int(rows[name]['between_worker'])}")
+
+    print("Within-worker communication:")
+    for name in assignments.keys():
+        print(f"  {name:<24} {_fmt_int(rows[name]['within_worker'])}")
+
+    print("\n=== TOTAL COMMUNICATION TIME ESTIMATE (theoretical serial time) ===")
+    print(f"Assumptions: network={network_us:.1f}us per unit, process={process_us:.1f}us per unit")
+    for name in assignments.keys():
+        print(f"  {name:<24} {_fmt_time_s(rows[name]['serial_time_s'])}")
+
+    print("\n=== PARALLEL COMMUNICATION TIME (assumes perfect combiners and network parallelism) ===")
+    print(f"Assumptions: network={network_us:.1f}us per PACKET, process={process_us:.1f}us per MSG")
+    for name in assignments.keys():
+        print(f"  {name:<24} {_fmt_time_s(rows[name]['parallel_time_s'])}")
+
+    print("\n=== Peak message load on a single machine ===")
+    print("Format: Total Msgs (Raw Net Msgs, Combined Packets, IPC Msgs)")
+    for name in assignments.keys():
+        r = rows[name]
+        print(
+            f"  {name:<24} {_fmt_int(r['max_compute']):>8} "
+            f"(NetMsgs: {_fmt_int(r['peak_m_net_msgs'])}, Pkts: {int(r['peak_m_packets'])}, IPC: {_fmt_int(r['peak_m_ipc'])})"
+        )
+
+    if ref_name in rows:
+        ref = rows[ref_name]
+        print(f"\n=== RELATIVE TO {ref_name.upper()} (Sync Barrier Time) ===")
+        for name in assignments.keys():
+            if name == ref_name:
+                continue
+            ratio = rows[name]["parallel_time_s"] / max(1e-12, ref["parallel_time_s"])
+            print(f"  {name:<24} bottleneck_ratio={ratio:.3f}x (lower is better)")
+
+    return rows
 
 
 # ============================================================
@@ -296,29 +398,6 @@ def initial_layout(und_adj, edges_for_layout, seed=0):
         n = len(und_adj)
         rng = random.Random(seed)
         pos = [(rng.random(), rng.random()) for _ in range(n)]
-
-        iters = 300
-        dt = 0.02
-        k_att = 0.0008
-
-        for _ in range(iters):
-            fx = [0.0] * n
-            fy = [0.0] * n
-
-            for u, v, w in edges_for_layout:
-                xu, yu = pos[u]
-                xv, yv = pos[v]
-                dx = xv - xu
-                dy = yv - yu
-                dist = math.sqrt(dx * dx + dy * dy) + 1e-6
-                f = k_att * math.log(1.0 + w) * dist
-                fx[u] += dx * f
-                fy[u] += dy * f
-                fx[v] -= dx * f
-                fy[v] -= dy * f
-
-            pos = [(pos[i][0] + dt * fx[i], pos[i][1] + dt * fy[i]) for i in range(n)]
-
         return {u: (pos[u][0], pos[u][1]) for u in range(n)}
 
 
@@ -402,7 +481,7 @@ def groups_by_machine(n, machine_of):
 
 
 def groups_by_worker_within_machine(n, machine_of, worker_of):
-    g = defaultdict(list)  # key=(m,w)
+    g = defaultdict(list)
     for u in range(n):
         g[(machine_of[u], worker_of[u])].append(u)
     return dict(g)
@@ -412,10 +491,6 @@ def groups_by_worker_within_machine(n, machine_of, worker_of):
 # drawing
 # ============================================================
 def draw_edges(ax, edges, pos, max_w, alpha_min=0.01, alpha_max=0.8):
-    """
-    weak edges fade out, strong edges pop.
-    alpha scales with log(weight), linewidth scales mildly too.
-    """
     denom = math.log(1.0 + float(max_w)) if max_w > 0 else 1.0
 
     for u, v, w in edges:
@@ -460,25 +535,13 @@ def set_bounds(ax, pos, pad=0.8):
     ax.axis("off")
 
 
-# ============================================================
-# 1x3 figure per method
-# ============================================================
-def visualize_method(
-    und_adj,
-    edges,
-    machine,
-    worker,
-    num_machines,
-    seed=0,
-    label="method",
-):
+def visualize_method(und_adj, edges, machine, worker, num_machines, seed=0, label="method"):
     n = len(und_adj)
 
     base_pos = initial_layout(und_adj, edges_for_layout=edges, seed=seed)
     m_rects = machine_rects(num_machines)
     max_w = max([w for _, _, w in edges], default=1.0)
 
-    # machines then workers
     groups_m = groups_by_machine(n, machine)
     pos_m = remap_into_boxes(base_pos, groups_m, m_rects, seed=seed + 1)
 
@@ -519,25 +582,102 @@ def visualize_method(
 
 
 # ============================================================
-# Run partitioners
+# Run scripts with arg auto-filter
 # ============================================================
-def _run_script(script_path, comm_json_path, out_path, cmd_args, banner):
+def _get_supported_flags(script_abs):
+    """
+    Return a set like {"--num_nodes","--seed",...} by scraping `python script.py --help`.
+    If help fails, return None (meaning "don't filter").
+    """
+    try:
+        res = subprocess.run(
+            [sys.executable, script_abs, "--help"],
+            capture_output=True,
+            text=True,
+        )
+        txt = (res.stdout or "") + "\n" + (res.stderr or "")
+        flags = set()
+        for token in txt.replace(",", " ").split():
+            if token.startswith("--"):
+                # keep raw flag name (strip trailing punctuation)
+                f = token.strip().strip("]")  # tolerate "[--foo"
+                f = f.strip()
+                # remove metavar forms like "--foo=BAR" if they appear
+                if "=" in f:
+                    f = f.split("=", 1)[0]
+                flags.add(f)
+        if not flags:
+            return None
+        return flags
+    except Exception:
+        return None
+
+
+def _filter_cmd_args_by_help(script_abs, cmd_args):
+    """
+    cmd_args is a flat list: ["--a","1","--b","2","--flag_only",...]
+    Remove any --flag (and its value if present) that the target script doesn't support.
+    """
+    supported = _get_supported_flags(script_abs)
+    if supported is None:
+        return cmd_args, []
+
+    filtered = []
+    dropped = []
+
+    i = 0
+    while i < len(cmd_args):
+        tok = cmd_args[i]
+        if tok.startswith("--"):
+            flag = tok.split("=", 1)[0]
+            if flag not in supported:
+                dropped.append(tok)
+                # drop value too if present and not another flag
+                if i + 1 < len(cmd_args) and not cmd_args[i + 1].startswith("--"):
+                    dropped.append(cmd_args[i + 1])
+                    i += 2
+                else:
+                    i += 1
+                continue
+
+            filtered.append(tok)
+            if "=" in tok:
+                i += 1
+                continue
+
+            # keep its value if it has one and next token is not another flag
+            if i + 1 < len(cmd_args) and not cmd_args[i + 1].startswith("--"):
+                filtered.append(cmd_args[i + 1])
+                i += 2
+            else:
+                i += 1
+        else:
+            filtered.append(tok)
+            i += 1
+
+    return filtered, dropped
+
+
+def _run_script_autofilter(script_path, comm_json_path, out_path, cmd_args, banner):
     script_abs = os.path.abspath(script_path)
     comm_abs = os.path.abspath(comm_json_path)
     out_abs = os.path.abspath(out_path)
 
+    # Filter by target script's help
+    cmd_args_filtered, dropped = _filter_cmd_args_by_help(script_abs, cmd_args)
+
     cmd = [sys.executable, script_abs] + [
         "--input", comm_abs,
         "--format", "json",
-    ] + cmd_args + [
+    ] + cmd_args_filtered + [
         "--output", out_abs,
     ]
 
     print(f"\n=== running {banner} ===")
-    print("cwd:", os.getcwd())
-    print("python:", sys.executable)
     print("cmd:", " ".join(cmd))
-    print("out should be:", out_abs)
+    if dropped:
+        print(f"note: dropped unsupported args for {os.path.basename(script_abs)}:")
+        print("  " + " ".join(dropped))
 
     res = subprocess.run(cmd, capture_output=True, text=True)
 
@@ -558,7 +698,8 @@ def _run_script(script_path, comm_json_path, out_path, cmd_args, banner):
     return out_abs
 
 
-def run_pregglenator_hier(pregglenator_path, comm_json_path, out_path, args):
+# --- runners ---
+def run_pregglenator_hier(pregglenator_path, comm_json_path, out_path, args, banner="pregglenator (hier)"):
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
@@ -566,7 +707,7 @@ def run_pregglenator_hier(pregglenator_path, comm_json_path, out_path, args):
         "--nodes_per_worker", str(args.nodes_per_worker),
         "--seed", str(args.seed),
     ]
-    return _run_script(pregglenator_path, comm_json_path, out_path, cmd_args, banner="pregglenator (hier)")
+    return _run_script_autofilter(pregglenator_path, comm_json_path, out_path, cmd_args, banner=banner)
 
 
 def run_pregglenator_oneshot(pregglenator_oneshot_path, comm_json_path, out_path, args):
@@ -580,177 +721,61 @@ def run_pregglenator_oneshot(pregglenator_oneshot_path, comm_json_path, out_path
         "--max_refine_passes", str(args.max_refine_passes),
         "--seed", str(args.seed),
     ]
-    return _run_script(pregglenator_oneshot_path, comm_json_path, out_path, cmd_args, banner="pregglenator (one-shot)")
+    return _run_script_autofilter(pregglenator_oneshot_path, comm_json_path, out_path, cmd_args, banner="pregglenator (one-shot)")
 
 
-def run_pregglenator_hypergraph(pregglenator_hypergraph_path, comm_json_path, out_path, args):
+def run_pregglenator_reduce_max(pregglenator_path, comm_json_path, out_path, args, banner="pregglenator (reduce-max output)"):
+    # Only pass the core args that gamer_mode help shows it accepts.
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
         "--nodes_per_machine", str(args.nodes_per_machine),
         "--nodes_per_worker", str(args.nodes_per_worker),
-        "--alpha", str(args.alpha),
-        "--beta", str(args.beta),
         "--seed", str(args.seed),
-        # keep these aligned with oneshot knobs for fair runtime, if present in v19
-        "--alt_rounds", str(args.alt_rounds),
-        "--remap_rounds", str(args.remap_rounds),
-        "--sa_passes", str(args.sa_passes),
-        "--sa_T_decay", str(args.sa_T_decay),
-        "--slack_factor", str(args.slack_factor),
-        "--lambda_worker", str(args.lambda_worker),
-        "--lambda_machine", str(args.lambda_machine),
-        "--coarsen_percentile", str(args.coarsen_percentile),
-        "--coarsen_max_pair_fraction", str(args.coarsen_max_pair_fraction),
+        "--refine_machine_iters", str(args.refine_machine_iters),
+        "--refine_worker_iters", str(args.refine_worker_iters),
     ]
-    if args.sa_steps_per_pass is not None:
-        cmd_args += ["--sa_steps_per_pass", str(args.sa_steps_per_pass)]
-    if args.sa_T0 is not None:
-        cmd_args += ["--sa_T0", str(args.sa_T0)]
-    if args.final_strict_repair:
-        cmd_args += ["--final_strict_repair"]
-    return _run_script(pregglenator_hypergraph_path, comm_json_path, out_path, cmd_args, banner="pregglenator (hypergraph)")
+    return _run_script_autofilter(pregglenator_path, comm_json_path, out_path, cmd_args, banner=banner)
 
 
-# ============================================================
-# pretty printing
-# ============================================================
-def _fmt_int(x):
-    try:
-        return f"{int(round(float(x))):,}"
-    except Exception:
-        return str(x)
+def run_pregglenator_reduce_max_strict(pregglenator_strict_path, comm_json_path, out_path, args):
+    # Your strict script might take workers_per_machine; if not, autofilter drops it.
+    cmd_args = [
+        "--num_nodes", str(args.n),
+        "--num_machines", str(args.num_machines),
+        "--nodes_per_machine", str(args.nodes_per_machine),
+        "--workers_per_machine", str(args.workers_per_machine),
+        "--nodes_per_worker", str(args.nodes_per_worker),
+        "--seed", str(args.seed),
+        "--refine_machine_iters", str(args.refine_machine_iters),
+        "--refine_worker_iters", str(args.refine_worker_iters),
+    ]
+    return _run_script_autofilter(
+        pregglenator_strict_path,
+        comm_json_path,
+        out_path,
+        cmd_args,
+        banner="pregglenator (reduce-max strict workers)",
+    )
 
 
-def _fmt_time_s(x):
-    return f"{x:.3f}s"
-
-
-from collections import defaultdict
-import statistics
-
-def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_us=400.0, process_us=15.0):
-    """
-    assignments: dict name -> (machine_list, worker_list)
-    """
-    rows = {}
-    for name, (m_of, w_of) in assignments.items():
-        # 1. Base Raw Breakdown
-        bm, bw, ww = comm_breakdown_directed(comm_loaded, m_of, w_of)
-        
-        # 2. Sequential/Serial Time Estimate (Legacy)
-        serial_t_s = (bm * network_us + bw * process_us) / 1e6
-        
-        # 3. Per-machine / Parallel Tracking
-        machine_packets = defaultdict(set)
-        machine_ipc_cost = defaultdict(float)
-        machine_compute = defaultdict(float)
-        machine_net_msgs = defaultdict(float)
-        
-        for u, nbrs in comm_loaded.items():
-            u_i = int(u)
-            if u_i >= len(m_of): continue
-            mu = m_of[u_i]
-            wu = w_of[u_i]
-            
-            for v, w in nbrs.items():
-                v_i = int(v)
-                if v_i >= len(m_of): continue
-                mv = m_of[v_i]
-                wv = w_of[v_i]
-                wf = float(w)
-                
-                machine_compute[mu] += wf
-                machine_compute[mv] += wf
-                
-                if mu != mv:
-                    machine_packets[mu].add(mv)
-                    machine_net_msgs[mu] += wf
-                elif wu != wv:
-                    machine_ipc_cost[mu] += wf
-                    
-        # Calculate individual machine times for Parallel/Straggler view
-        m_times = {}
-        all_ms = sorted(list(set(m_of)))
-        for m in all_ms:
-            pkts = len(machine_packets[m])
-            ipc = machine_ipc_cost[m]
-            m_times[m] = (pkts * network_us + ipc * process_us) / 1e6
-
-        times_list = list(m_times.values())
-        max_t = max(times_list) if times_list else 0
-        avg_t = sum(times_list) / len(times_list) if times_list else 0
-        imbalance = max_t / avg_t if avg_t > 0 else 1.0
-        
-        peak_m = -1
-        max_comp = 0.0
-        if machine_compute:
-            peak_m = max(machine_compute, key=machine_compute.get)
-            max_comp = machine_compute[peak_m]
-
-        rows[name] = {
-            "between_machine": bm,
-            "between_worker": bw,
-            "within_worker": ww,
-            "serial_time_s": serial_t_s,
-            "parallel_time_s": max_t,
-            "m_times": m_times,
-            "avg_t": avg_t,
-            "imbalance": imbalance,
-            "max_compute": max_comp,
-            "peak_m_packets": len(machine_packets[peak_m]),
-            "peak_m_net_msgs": machine_net_msgs[peak_m],
-            "peak_m_ipc": machine_ipc_cost[peak_m]
-        }
-
-    # --- FINAL PRINTING BLOCK ---
-    print("\n=== COMPARISON (directed comm totals, evaluated on ORIGINAL comm) ===")
-    print("Between-machine communication (Raw Message Count):")
-    for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_int(rows[name]['between_machine'])}")
-
-    print("Within-machine BETWEEN-worker communication:")
-    for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_int(rows[name]['between_worker'])}")
-
-    print("Within-worker communication:")
-    for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_int(rows[name]['within_worker'])}")
-
-    print("\n=== TOTAL COMMUNICATION TIME ESTIMATE (theoretical serial time) ===")
-    print(f"Assumptions: network={network_us:.1f}us per unit, process={process_us:.1f}us per unit")
-    for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_time_s(rows[name]['serial_time_s'])}")
-
-    print("\n=== PER-MACHINE COMMUNICATION TIME (Parallel Packet + IPC) ===")
-    for name in assignments.keys():
-        print(f"  {name.upper()}:")
-        m_data = rows[name]['m_times']
-        for m_id, t in m_data.items():
-            print(f"   m{m_id}: {_fmt_time_s(t)}", end=", ")
-        print(f"   {'Avg:':<8} {_fmt_time_s(rows[name]['avg_t'])}")
-        print(f"   {'Imbal:':<8} {rows[name]['imbalance']:.3f}x")
-
-    print("\n=== PARALLEL COMMUNICATION TIME (assumes perfect combiners and network parallelism ===")
-    print(f"Assumptions: network={network_us:.1f}us per PACKET, process={process_us:.1f}us per MSG")
-    for name in assignments.keys():
-        print(f"  {name:<15} {_fmt_time_s(rows[name]['parallel_time_s'])}")
-
-    print("\n=== Peak message load on a single machine ===")
-    print("Format: Total Msgs (Raw Net Msgs, Combined Packets, IPC Msgs)")
-    for name in assignments.keys():
-        r = rows[name]
-        print(f"  {name:<15} {_fmt_int(r['max_compute']):>8} (NetMsgs: {_fmt_int(r['peak_m_net_msgs'])}, Pkts: {int(r['peak_m_packets'])}, IPC: {_fmt_int(r['peak_m_ipc'])})")
-
-    if ref_name in rows:
-        ref = rows[ref_name]
-        print(f"\n=== RELATIVE TO {ref_name.upper()} (Sync Barrier Time) ===")
-        for name in assignments.keys():
-            if name == ref_name: continue
-            ratio = rows[name]["parallel_time_s"] / max(1e-12, ref["parallel_time_s"])
-            print(f"  {name:<15} bottleneck_ratio={ratio:.3f}x (lower is better)")
-
-    return rows
+def run_pregglenator_loose(pregglenator_loose_path, comm_json_path, out_path, args):
+    cmd_args = [
+        "--num_nodes", str(args.n),
+        "--num_machines", str(args.num_machines),
+        "--nodes_per_machine", str(args.nodes_per_machine),
+        "--nodes_per_worker", str(args.nodes_per_worker),
+        "--seed", str(args.seed),
+        "--worker_size_tol", str(args.worker_size_tol),
+        "--workers_per_machine", str(args.workers_per_machine),
+    ]
+    return _run_script_autofilter(
+        pregglenator_loose_path,
+        comm_json_path,
+        out_path,
+        cmd_args,
+        banner="pregglenator (metis relaxed)",
+    )
 
 
 # ============================================================
@@ -758,35 +783,33 @@ def print_comparison(comm_loaded, n, assignments, ref_name="one_shot", network_u
 # ============================================================
 def main():
     ap = argparse.ArgumentParser()
+
+    # scripts
     ap.add_argument("--pregglenator", default="pregglenator.py")
     ap.add_argument("--pregglenator_oneshot", default="pregglenator_oneshot.py")
-    ap.add_argument("--pregglenator_hypergraph", default="pregglenator_gamer_mode.py")
+    ap.add_argument("--pregglenator_gamer_mode", default="pregglenator_gamer_mode.py")
+    ap.add_argument("--pregglenator_gamer_mode_strict", default="pregglenator_gamer_mode_strict.py")
+    ap.add_argument("--pregglenator_loose", default="pregglenator_loose.py")
 
     # Defaults
     ap.add_argument("--n", type=int, default=70)
     ap.add_argument("--num_machines", type=int, default=4)
     ap.add_argument("--nodes_per_machine", type=int, default=20)
     ap.add_argument("--nodes_per_worker", type=int, default=5)
+    ap.add_argument("--workers_per_machine", type=int, default=4)
     ap.add_argument("--seed", type=int, default=7)
 
-    # One-shot knobs (passed through to oneshot/hypergraph where applicable)
+    # One-shot knobs
     ap.add_argument("--alpha", type=float, default=20.0)
     ap.add_argument("--beta", type=float, default=1.0)
     ap.add_argument("--max_refine_passes", type=int, default=18)
 
-    # Hypergraph v19 knobs (optional but exposed for parity)
-    ap.add_argument("--alt_rounds", type=int, default=10)
-    ap.add_argument("--remap_rounds", type=int, default=12)
-    ap.add_argument("--sa_passes", type=int, default=10)
-    ap.add_argument("--sa_steps_per_pass", type=int, default=None)
-    ap.add_argument("--sa_T0", type=float, default=None)
-    ap.add_argument("--sa_T_decay", type=float, default=0.85)
-    ap.add_argument("--slack_factor", type=float, default=1.05)
-    ap.add_argument("--lambda_worker", type=float, default=10.0)
-    ap.add_argument("--lambda_machine", type=float, default=10.0)
-    ap.add_argument("--coarsen_percentile", type=float, default=95.0)
-    ap.add_argument("--coarsen_max_pair_fraction", type=float, default=0.45)
-    ap.add_argument("--final_strict_repair", action="store_true")
+    # Reduce-max knobs (both gamer scripts typically accept these)
+    ap.add_argument("--refine_machine_iters", type=int, default=200)
+    ap.add_argument("--refine_worker_iters", type=int, default=100)
+
+    # Loose knobs
+    ap.add_argument("--worker_size_tol", type=float, default=0.10)
 
     # Trace generation knobs
     ap.add_argument("--p_edge", type=float, default=0.06)
@@ -804,20 +827,22 @@ def main():
 
     # Temp files
     ap.add_argument("--tmp_comm", default="_tmp_comm.json")
+    ap.add_argument("--tmp_comm_topo", default="_tmp_comm_topology.json")
+
     ap.add_argument("--tmp_out_ours", default="_tmp_assignment_ours.json")
     ap.add_argument("--tmp_out_topo", default="_tmp_assignment_topology.json")
     ap.add_argument("--tmp_out_oneshot", default="_tmp_assignment_oneshot.json")
-    ap.add_argument("--tmp_out_hyper", default="_tmp_assignment_hypergraph.json")
-    ap.add_argument("--tmp_comm_topo", default="_tmp_comm_topology.json")
+
+    ap.add_argument("--tmp_out_gamer", default="_tmp_assignment_gamer.json")
+    ap.add_argument("--tmp_out_gamer_strict", default="_tmp_assignment_gamer_strict.json")
+    ap.add_argument("--tmp_out_loose", default="_tmp_assignment_loose.json")
+
     ap.add_argument("--no_cleanup", action="store_true")
 
     args = ap.parse_args()
 
     if args.num_machines * args.nodes_per_machine < args.n:
         raise RuntimeError("Infeasible: NUM_MACHINES * NODES_PER_MACHINE < N")
-
-    if args.alpha < args.beta:
-        raise RuntimeError("Require alpha >= beta (cross-machine penalty should be >= intra-machine).")
 
     # 1) generate trace
     comm = make_fake_comm_trace(
@@ -833,22 +858,32 @@ def main():
     )
     dump_comm_json(comm, args.tmp_comm)
 
-    # 2) run ours (weighted, hierarchical)
-    ours_out_path = run_pregglenator_hier(args.pregglenator, args.tmp_comm, args.tmp_out_ours, args)
+    # 2) run ours
+    ours_out_path = run_pregglenator_hier(
+        args.pregglenator, args.tmp_comm, args.tmp_out_ours, args, banner="pregglenator (ours weighted hier)"
+    )
 
-    # 3) run one-shot
+    # 3) one-shot
     oneshot_out_path = run_pregglenator_oneshot(args.pregglenator_oneshot, args.tmp_comm, args.tmp_out_oneshot, args)
 
-    # 4) run hypergraph (broadcast-aware)
-    hyper_out_path = run_pregglenator_hypergraph(args.pregglenator_hypergraph, args.tmp_comm, args.tmp_out_hyper, args)
+    # 4) reduce-max output
+    gamer_out_path = run_pregglenator_reduce_max(args.pregglenator_gamer_mode, args.tmp_comm, args.tmp_out_gamer, args)
 
-    # 5) build undirected + edges for visualization
+    # 5) reduce-max strict workers
+    gamer_strict_out_path = run_pregglenator_reduce_max_strict(
+        args.pregglenator_gamer_mode_strict, args.tmp_comm, args.tmp_out_gamer_strict, args
+    )
+
+    # 6) metis relaxed
+    loose_out_path = run_pregglenator_loose(args.pregglenator_loose, args.tmp_comm, args.tmp_out_loose, args)
+
+    # 7) build undirected + edges for visualization
     comm_loaded = load_comm_json(args.tmp_comm)
     n = infer_num_nodes(comm_loaded, explicit_n=args.n)
     und_adj = symmetrize_to_undirected(comm_loaded, n)
     edges = top_edges_undirected(und_adj, top_k=args.top_k_edges, min_w=args.min_edge_weight)
 
-    # 6) random baseline assignment
+    # 8) random baseline assignment
     rnd_machine, rnd_worker = random_capacity_partition(
         n=n,
         num_machines=args.num_machines,
@@ -857,98 +892,68 @@ def main():
         seed=args.seed,
     )
 
-    # 7) ours assignment
+    # 9) load outputs
     ours_machine_map, ours_worker_map, _ = load_assignment_json(ours_out_path)
     ours_machine = [ours_machine_map[u] for u in range(n)]
     ours_worker = [ours_worker_map[u] for u in range(n)]
 
-    # 8) oneshot assignment
     oneshot_machine_map, oneshot_worker_map, _ = load_assignment_json(oneshot_out_path)
     oneshot_machine = [oneshot_machine_map[u] for u in range(n)]
     oneshot_worker = [oneshot_worker_map[u] for u in range(n)]
 
-    # 9) hypergraph assignment
-    hyper_machine_map, hyper_worker_map, hyper_stats = load_assignment_json(hyper_out_path)
-    hyper_machine = [hyper_machine_map[u] for u in range(n)]
-    hyper_worker = [hyper_worker_map[u] for u in range(n)]
+    gamer_machine_map, gamer_worker_map, _ = load_assignment_json(gamer_out_path)
+    gamer_machine = [gamer_machine_map[u] for u in range(n)]
+    gamer_worker = [gamer_worker_map[u] for u in range(n)]
+
+    gamerS_machine_map, gamerS_worker_map, _ = load_assignment_json(gamer_strict_out_path)
+    gamerS_machine = [gamerS_machine_map[u] for u in range(n)]
+    gamerS_worker = [gamerS_worker_map[u] for u in range(n)]
+
+    loose_machine_map, loose_worker_map, _ = load_assignment_json(loose_out_path)
+    loose_machine = [loose_machine_map[u] for u in range(n)]
+    loose_worker = [loose_worker_map[u] for u in range(n)]
 
     # 10) metis(topology-only): write comm with all weights=1 and run hierarchical again
     topo_comm = make_topology_only_comm_from_undirected(und_adj)
     dump_comm_json(topo_comm, args.tmp_comm_topo)
-    topo_assignment_path = run_pregglenator_hier(args.pregglenator, args.tmp_comm_topo, args.tmp_out_topo, args)
-
+    topo_assignment_path = run_pregglenator_hier(
+        args.pregglenator,
+        args.tmp_comm_topo,
+        args.tmp_out_topo,
+        args,
+        banner="pregglenator (metis topology-only via hier script)",
+    )
     topo_machine_map, topo_worker_map, _ = load_assignment_json(topo_assignment_path)
     topo_machine = [topo_machine_map[u] for u in range(n)]
     topo_worker = [topo_worker_map[u] for u in range(n)]
 
-    # 11) comparisons (evaluate on ORIGINAL directed comm)
+    # 11) comparisons
     assignments = {
         "random": (rnd_machine, rnd_worker),
         "metis_topo": (topo_machine, topo_worker),
         "ours": (ours_machine, ours_worker),
         "one_shot": (oneshot_machine, oneshot_worker),
-        "hypergraph": (hyper_machine, hyper_worker),
+        "reduce_max": (gamer_machine, gamer_worker),
+        "reduce_max_strict": (gamerS_machine, gamerS_worker),
+        "metis_relaxed": (loose_machine, loose_worker),
     }
 
     print_comparison(
         comm_loaded=comm_loaded,
-        n=n,
         assignments=assignments,
         ref_name="one_shot",
         network_us=args.network_us,
         process_us=args.process_us,
     )
 
-    # 12) show 1x3 per method
-    visualize_method(
-        und_adj=und_adj,
-        edges=edges,
-        machine=rnd_machine,
-        worker=rnd_worker,
-        num_machines=args.num_machines,
-        seed=args.seed,
-        label="random baseline",
-    )
-
-    visualize_method(
-        und_adj=und_adj,
-        edges=edges,
-        machine=topo_machine,
-        worker=topo_worker,
-        num_machines=args.num_machines,
-        seed=args.seed,
-        label="metis (topology-only)",
-    )
-
-    visualize_method(
-        und_adj=und_adj,
-        edges=edges,
-        machine=ours_machine,
-        worker=ours_worker,
-        num_machines=args.num_machines,
-        seed=args.seed,
-        label="ours (weighted, hier)",
-    )
-
-    visualize_method(
-        und_adj=und_adj,
-        edges=edges,
-        machine=oneshot_machine,
-        worker=oneshot_worker,
-        num_machines=args.num_machines,
-        seed=args.seed,
-        label=f"one-shot (alpha={args.alpha}, beta={args.beta})",
-    )
-
-    visualize_method(
-        und_adj=und_adj,
-        edges=edges,
-        machine=hyper_machine,
-        worker=hyper_worker,
-        num_machines=args.num_machines,
-        seed=args.seed,
-        label=f"hypergraph (alpha={args.alpha}, beta={args.beta})",
-    )
+    # 12) visualize
+    visualize_method(und_adj, edges, rnd_machine, rnd_worker, args.num_machines, seed=args.seed, label="random baseline")
+    visualize_method(und_adj, edges, topo_machine, topo_worker, args.num_machines, seed=args.seed, label="metis (topology-only)")
+    visualize_method(und_adj, edges, ours_machine, ours_worker, args.num_machines, seed=args.seed, label="ours (weighted, hier)")
+    visualize_method(und_adj, edges, oneshot_machine, oneshot_worker, args.num_machines, seed=args.seed, label="one-shot")
+    visualize_method(und_adj, edges, gamer_machine, gamer_worker, args.num_machines, seed=args.seed, label="reduce-max output")
+    visualize_method(und_adj, edges, gamerS_machine, gamerS_worker, args.num_machines, seed=args.seed, label="reduce-max strict workers")
+    visualize_method(und_adj, edges, loose_machine, loose_worker, args.num_machines, seed=args.seed, label="metis relaxed")
 
     # cleanup
     if not args.no_cleanup:
@@ -958,7 +963,9 @@ def main():
             args.tmp_out_ours,
             args.tmp_out_topo,
             args.tmp_out_oneshot,
-            args.tmp_out_hyper,
+            args.tmp_out_gamer,
+            args.tmp_out_gamer_strict,
+            args.tmp_out_loose,
         ]:
             try:
                 os.remove(p)

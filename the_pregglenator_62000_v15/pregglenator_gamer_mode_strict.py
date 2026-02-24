@@ -1,15 +1,18 @@
 """
-pregglenator 62000 v16 - two-level partitioning (machines then workers)
-Goal upgrade:
-  Stage 1 (machines): minimize MAX per-machine external (network) load
-    where external load of a machine is sum of cut-edge weights incident to it.
-  Stage 2 (workers inside each machine): minimize MAX per-worker cross-worker load
-    within a machine (same definition but on the induced subgraph).
+pregglenator 62000 v17 - two-level partitioning with HARD workers-per-machine
 
-Notes:
-- Uses METIS (pymetis) for initialization, then does bottleneck-aware repair/refinement.
-- Strict capacity enforced (nodes_per_machine, nodes_per_worker).
-- No supersteps: comm is treated as one aggregated step.
+Stage 1 (machines):
+  - Init with METIS
+  - Repair + optional refine with bottleneck objective: minimize MAX per-machine external load
+  - Enforce strict nodes_per_machine (upper bound)
+
+Stage 2 (workers inside each machine):
+  - HARD enforce workers_per_machine = W (exactly)
+  - Enforce strict nodes_per_worker (upper bound)
+  - Repair + optional refine with bottleneck objective on induced subgraph
+
+If any machine ends up with k nodes where k > W * nodes_per_worker, stage 2 is infeasible
+and the script raises an error.
 
 Install:
   conda install -c conda-forge pymetis
@@ -117,9 +120,8 @@ def build_pymetis_inputs(und_adj):
 
 
 def metis_partition(und_adj, nparts, seed=42):
+    # pymetis doesn't expose a seed; keep arg for compatibility
     xadj, adjncy, eweights = build_pymetis_inputs(und_adj)
-
-    # pymetis ignores seed; we keep it in signature for compatibility
     _, parts = pymetis.part_graph(
         nparts,
         xadj=xadj,
@@ -139,10 +141,6 @@ def compute_boundary_nodes(und_adj, part_of):
                 break
     return boundary
 
-
-# -------------------------
-# Bottleneck (max-load) model
-# -------------------------
 
 def compute_part_sizes(part_of, nparts):
     sizes = [0] * nparts
@@ -174,24 +172,12 @@ def compute_part_external_loads(und_adj, part_of, nparts):
 
 def move_delta_external_loads(und_adj, u, src_part, dst_part, part_of):
     """
-    Compute how the per-part external loads change if u moves src->dst.
-    Returns dict {part_id: delta_load}.
-    Only parts affected: src_part, dst_part, and neighbor parts.
-
-    Rule for an edge (u,v) with weight w:
-      - Before move, it's cut if part(v) != src
-      - After move, it's cut if part(v) != dst
-
-    Each cut edge contributes w to both endpoint parts.
-    So changing cut-status changes loads for:
-      - the part of u (src or dst) by +/- w
-      - the part of v by +/- w
+    Sparse per-part load deltas if u moves src->dst, under the external-load definition.
     """
     deltas = defaultdict(float)
 
     for v, w in und_adj[u].items():
         pv = part_of[v]
-
         before_cut = (pv != src_part)
         after_cut = (pv != dst_part)
 
@@ -199,24 +185,18 @@ def move_delta_external_loads(und_adj, u, src_part, dst_part, part_of):
             continue
 
         if before_cut and (not after_cut):
-            # edge was cut, becomes internal: remove contribution
+            # cut -> internal: remove w from both endpoint parts
             deltas[src_part] -= w
             deltas[pv] -= w
         else:
-            # edge was internal, becomes cut: add contribution
+            # internal -> cut: add w to both endpoint parts
             deltas[dst_part] += w
             deltas[pv] += w
-
-    # Note: u's membership changes, so any "cut edge" contributions incident to u
-    # are already accounted via src_part/dst_part adjustments above.
 
     return deltas
 
 
 def score_max_load_with_deltas(loads, deltas):
-    """
-    Given current loads list and sparse deltas dict, compute new max(loads).
-    """
     mx = -1.0
     for i, base in enumerate(loads):
         val = base + deltas.get(i, 0.0)
@@ -232,26 +212,21 @@ def choose_best_bottleneck_move(
     sizes,
     capacity,
     src_part,
-    underfull_parts,
+    candidate_dsts,
     boundary_nodes,
     nparts,
 ):
     """
-    Pick a move u: src_part -> dst_part that minimizes resulting max external load.
-    Only considers u in boundary_nodes (or falls back to all nodes in src_part).
-    Respects capacity on dst_part.
-
-    Returns (best_u, best_dst, best_new_max, best_deltas) or (None,...)
+    Pick u in src_part and dst in candidate_dsts minimizing resulting max load.
+    Returns (u, dst, new_max, deltas) or (None,...)
     """
-    current_max = max(loads)
-
     candidates_u = [u for u in boundary_nodes if part_of[u] == src_part]
     if not candidates_u:
         candidates_u = [u for u in range(len(part_of)) if part_of[u] == src_part]
 
-    best = None  # (new_max, tie_cut_delta, u, dst, deltas)
+    best = None  # (new_max, tie, u, dst, deltas)
     for u in candidates_u:
-        for dst in underfull_parts:
+        for dst in candidate_dsts:
             if dst == src_part:
                 continue
             if sizes[dst] >= capacity:
@@ -260,28 +235,20 @@ def choose_best_bottleneck_move(
             deltas = move_delta_external_loads(und_adj, u, src_part, dst, part_of)
             new_max = score_max_load_with_deltas(loads, deltas)
 
-            # Tie-break: if max is same, prefer not increasing total cut too much.
-            # Approx: delta_total_cut = 0.5 * (delta_load_src + delta_load_dst + sum neighbor deltas? not exact)
-            # We'll use simple: sum of positive deltas - sum of negative deltas over all parts, scaled.
-            # This is just a stable tiebreaker.
             tie = 0.0
             for dv in deltas.values():
                 tie += abs(dv)
 
             if best is None:
                 best = (new_max, tie, u, dst, deltas)
-                continue
-
-            if new_max < best[0] - 1e-12:
-                best = (new_max, tie, u, dst, deltas)
-            elif abs(new_max - best[0]) <= 1e-12 and tie < best[1]:
-                best = (new_max, tie, u, dst, deltas)
+            else:
+                if new_max < best[0] - 1e-12:
+                    best = (new_max, tie, u, dst, deltas)
+                elif abs(new_max - best[0]) <= 1e-12 and tie < best[1]:
+                    best = (new_max, tie, u, dst, deltas)
 
     if best is None:
         return None, None, None, None
-
-    # If we can't improve max at all, still may need a move for capacity repair.
-    # Caller decides whether to accept.
     return best[2], best[3], best[0], best[4]
 
 
@@ -301,22 +268,18 @@ def repair_capacity_bottleneck(
     refine_iters=0,
 ):
     """
-    Enforce strict capacity using bottleneck objective:
-      - Primary: minimize resulting max external load (max per-part).
-      - Secondary: stable small changes.
-
-    If refine_iters > 0, also performs extra refinement moves after capacity is feasible.
+    Enforce strict max size per part by moving nodes, choosing moves that minimize
+    resulting max external load (bottleneck objective). Then optionally refine.
     """
-    n = len(part_of)
     sizes = compute_part_sizes(part_of, nparts)
 
+    # Quick feasible case
     if all(s <= capacity for s in sizes):
         loads = compute_part_external_loads(und_adj, part_of, nparts)
         if refine_iters > 0:
-            _refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, refine_iters)
+            refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, refine_iters)
         return part_of
 
-    # Need slack somewhere
     underfull = set([p for p in range(nparts) if sizes[p] < capacity])
     overloaded = deque([p for p in range(nparts) if sizes[p] > capacity])
 
@@ -331,15 +294,14 @@ def repair_capacity_bottleneck(
         if sizes[src] <= capacity:
             continue
 
-        # Always try to move out of src to any underfull dst with best bottleneck score
-        u, dst, new_max, deltas = choose_best_bottleneck_move(
+        u, dst, _, deltas = choose_best_bottleneck_move(
             und_adj=und_adj,
             part_of=part_of,
             loads=loads,
             sizes=sizes,
             capacity=capacity,
             src_part=src,
-            underfull_parts=underfull,
+            candidate_dsts=underfull,
             boundary_nodes=boundary,
             nparts=nparts,
         )
@@ -352,7 +314,6 @@ def repair_capacity_bottleneck(
         if sizes[dst] >= capacity:
             underfull.discard(dst)
 
-        # boundary update local
         boundary.add(u)
         for v in und_adj[u].keys():
             boundary.add(v)
@@ -364,25 +325,24 @@ def repair_capacity_bottleneck(
             raise RuntimeError("Capacity infeasible during repair: not enough slack to fix overload.")
 
     if refine_iters > 0:
-        _refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, refine_iters)
+        refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, refine_iters)
 
     return part_of
 
 
-def _refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, iters):
+def refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, iters):
     """
-    Local refinement to reduce max external load while respecting capacity.
-    Greedy: repeatedly pick worst-loaded part and move a boundary node out if it reduces max.
+    Greedy refinement: repeatedly take worst-loaded part and attempt a move out
+    that improves global max load.
     """
     boundary = compute_boundary_nodes(und_adj, part_of)
 
     for _ in range(iters):
         worst = max(range(nparts), key=lambda p: loads[p])
-        current_max = loads[worst]
+        current_max = max(loads)
 
-        # Candidate destinations: any part with slack
-        dsts = [p for p in range(nparts) if p != worst and sizes[p] < capacity]
-        if not dsts:
+        candidate_dsts = [p for p in range(nparts) if p != worst and sizes[p] < capacity]
+        if not candidate_dsts:
             break
 
         u, dst, new_max, deltas = choose_best_bottleneck_move(
@@ -392,16 +352,13 @@ def _refine_bottleneck(und_adj, part_of, loads, sizes, capacity, nparts, iters):
             sizes=sizes,
             capacity=capacity,
             src_part=worst,
-            underfull_parts=set(dsts),
+            candidate_dsts=candidate_dsts,
             boundary_nodes=boundary,
             nparts=nparts,
         )
-
         if u is None:
             break
-
-        # Only accept if it improves the global max
-        if new_max >= max(loads) - 1e-12:
+        if new_max >= current_max - 1e-12:
             break
 
         apply_move(part_of, loads, sizes, u, worst, dst, deltas)
@@ -451,10 +408,11 @@ def compute_max_external_load(und_adj, part_of, nparts):
     return max(loads), loads
 
 
-def partition_two_level_bottleneck(
+def partition_two_level_fixed_workers(
     und_adj,
     num_machines,
     nodes_per_machine,
+    workers_per_machine,
     nodes_per_worker,
     seed=42,
     refine_machine_iters=200,
@@ -464,10 +422,8 @@ def partition_two_level_bottleneck(
     if num_machines * nodes_per_machine < n:
         raise RuntimeError("Infeasible: NUM_MACHINES * NODES_PER_MACHINE < total nodes.")
 
-    # Stage 1: machines init (METIS)
+    # Stage 1: machine partition init + bottleneck repair/refine
     machine_of = metis_partition(und_adj, num_machines, seed=seed)
-
-    # Bottleneck-aware strict capacity repair + refinement
     machine_of = repair_capacity_bottleneck(
         und_adj,
         machine_of,
@@ -481,39 +437,45 @@ def partition_two_level_bottleneck(
     for u, m in enumerate(machine_of):
         nodes_in_machine[m].append(u)
 
-    # Stage 2: workers inside each machine
+    # Stage 2: fixed workers per machine
     worker_of_global = [-1] * n
-    worker_count_per_machine = [0] * num_machines
+    worker_count_per_machine = [workers_per_machine] * num_machines
 
     for m in range(num_machines):
         nodes_m = nodes_in_machine[m]
-        if not nodes_m:
+        k = len(nodes_m)
+        if k == 0:
             continue
 
-        k = len(nodes_m)
-        num_workers = int(math.ceil(k / float(nodes_per_worker)))
-        if num_workers <= 0:
-            num_workers = 1
+        if k > workers_per_machine * nodes_per_worker:
+            raise RuntimeError(
+                f"Workers infeasible on machine {m}: "
+                f"{k} nodes but workers_per_machine*nodes_per_worker="
+                f"{workers_per_machine}*{nodes_per_worker}={workers_per_machine*nodes_per_worker}."
+            )
 
         sub_adj, _, new_to_old = induced_subgraph(und_adj, nodes_m)
 
-        # init workers with METIS on induced subgraph
-        parts_sub = metis_partition(sub_adj, num_workers, seed=seed + m + 1)
+        # If only 1 worker, trivial
+        if workers_per_machine == 1:
+            for new_u in range(len(nodes_m)):
+                old_u = new_to_old[new_u]
+                worker_of_global[old_u] = 0
+            continue
 
-        # capacity repair on workers, bottleneck objective WITHIN machine
+        parts_sub = metis_partition(sub_adj, workers_per_machine, seed=seed + m + 1)
+
         parts_sub = repair_capacity_bottleneck(
             sub_adj,
             parts_sub,
             capacity=nodes_per_worker,
-            nparts=num_workers,
+            nparts=workers_per_machine,
             refine_iters=refine_worker_iters,
         )
 
         for new_u, w in enumerate(parts_sub):
             old_u = new_to_old[new_u]
             worker_of_global[old_u] = w
-
-        worker_count_per_machine[m] = num_workers
 
     return machine_of, worker_of_global, worker_count_per_machine
 
@@ -526,7 +488,10 @@ def main():
     ap.add_argument("--num_nodes", type=int, default=None, help="Optional explicit N. Otherwise inferred.")
     ap.add_argument("--num_machines", type=int, required=True)
     ap.add_argument("--nodes_per_machine", type=int, required=True)
+
+    ap.add_argument("--workers_per_machine", type=int, required=True, help="HARD exact worker count per machine")
     ap.add_argument("--nodes_per_worker", type=int, required=True)
+
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--refine_machine_iters", type=int, default=200)
     ap.add_argument("--refine_worker_iters", type=int, default=100)
@@ -541,17 +506,17 @@ def main():
     n = infer_num_nodes(comm, explicit_n=args.num_nodes)
     und_adj = symmetrize_to_undirected(comm, n)
 
-    machine_of, worker_of, worker_counts = partition_two_level_bottleneck(
+    machine_of, worker_of, worker_counts = partition_two_level_fixed_workers(
         und_adj,
         num_machines=args.num_machines,
         nodes_per_machine=args.nodes_per_machine,
+        workers_per_machine=args.workers_per_machine,
         nodes_per_worker=args.nodes_per_worker,
         seed=args.seed,
         refine_machine_iters=args.refine_machine_iters,
         refine_worker_iters=args.refine_worker_iters,
     )
 
-    # Build output
     out = {}
     for u in range(n):
         out[str(u)] = {"machine": int(machine_of[u]), "worker": int(worker_of[u])}
@@ -563,11 +528,12 @@ def main():
         "num_nodes": n,
         "num_machines": args.num_machines,
         "nodes_per_machine": args.nodes_per_machine,
+        "workers_per_machine": args.workers_per_machine,
         "nodes_per_worker": args.nodes_per_worker,
         "machine_cut_weight": machine_cut,
         "machine_max_external_load": max_load,
         "machine_external_loads": per_loads,
-        "workers_per_machine": worker_counts,
+        "workers_per_machine_list": worker_counts,
     }
 
     payload = {"assignment": out, "stats": stats}
