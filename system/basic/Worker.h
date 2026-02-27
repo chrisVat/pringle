@@ -409,7 +409,9 @@ public:
             //===================
 
             long long global_cross_worker_msg = all_sum_LL(_cross_worker_msg_num);
+            long long global_cross_machine = all_sum_LL(_cross_machine_msg_num);
             _cross_worker_msg_num = 0;  // reset for next superstep
+            _cross_machine_msg_num = 0;
 
             worker_barrier();
             StopTimer(4);
@@ -417,6 +419,7 @@ public:
                 cout << "Superstep " << global_step_num << " done. Time elapsed: " << get_timer(4) << " seconds" << endl;
                 cout << "#msgs: " << step_msg_num << ", #vadd: " << step_vadd_num << endl;
                 cout << "#cross-worker msgs: " << global_cross_worker_msg << endl;  // NEW
+                cout << "#cross-machine msgs: " << global_cross_machine << endl;
             }
         }
         worker_barrier();
@@ -446,6 +449,52 @@ public:
                 cout << endl;
             }
         } else {
+            send_data(my_row, MASTER_RANK);
+        }
+
+        // Get number of machines
+        int num_machines = (int)_machine_comm_matrix.size();
+
+        // Every worker sends its machine's row
+        // BUT only one worker per machine should send (avoid duplicates)
+        // Use the lowest rank on each machine as the sender
+        bool am_machine_representative = true;
+        for (auto& [rank, machine] : _rank_to_machine) {
+            if (machine == _machine_id && rank < _my_rank) {
+                am_machine_representative = false;
+                break;
+            }
+        }
+
+        if (_my_rank == MASTER_RANK) {
+            // Collect from one representative per machine (skip machine 0, that's master)
+            for (int w = 1; w < _num_workers; w++) {
+                // Only receive from machine representatives
+                bool is_rep = true;
+                for (auto& [rank, machine] : _rank_to_machine) {
+                    if (machine == _rank_to_machine[w] && rank < w) {
+                        is_rep = false;
+                        break;
+                    }
+                }
+                if (!is_rep) continue;
+
+                vector<int> row = recv_data<vector<int>>(w);
+                int m = _rank_to_machine[w];
+                for (int i = 0; i < num_machines; i++)
+                    _machine_comm_matrix[m][i] = row[i];
+            }
+
+            cout << "\nMachine Communication Matrix (row=src, col=dst):" << endl;
+            for (int i = 0; i < num_machines; i++) {
+                for (int j = 0; j < num_machines; j++)
+                    cout << setw(10) << _machine_comm_matrix[i][j];
+                cout << endl;
+            }
+        } else if (am_machine_representative) {
+            vector<int> my_row(num_machines);
+            for (int i = 0; i < num_machines; i++)
+                my_row[i] = _machine_comm_matrix[_machine_id][i];
             send_data(my_row, MASTER_RANK);
         }
 

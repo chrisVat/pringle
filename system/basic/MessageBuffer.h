@@ -74,6 +74,14 @@ public:
                 int cnt = (int)out_messages.getBuf(i).size();
                 _cross_worker_msg_num += cnt;
                 _worker_comm_matrix[me][i] += cnt;  // accumulates across all supersteps
+
+                // Cross-machine tracking
+                int my_machine = _rank_to_machine[me];
+                int dst_machine = _rank_to_machine[i];
+                if (my_machine != dst_machine) {
+                    _cross_machine_msg_num += cnt;
+                    _machine_comm_matrix[my_machine][dst_machine] += cnt;
+                }
             }
         }
 
