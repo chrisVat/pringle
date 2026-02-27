@@ -455,34 +455,35 @@ public:
         // Get number of machines
         int num_machines = (int)_machine_comm_matrix.size();
 
-        // Every worker sends its machine's row
-        // BUT only one worker per machine should send (avoid duplicates)
-        // Use the lowest rank on each machine as the sender
-        bool am_machine_representative = true;
-        for (auto& [rank, machine] : _rank_to_machine) {
-            if (machine == _machine_id && rank < _my_rank) {
-                am_machine_representative = false;
-                break;
+        
+        // Flatten local matrix for MPI_Reduce
+        vector<int> flat_local(num_machines * num_machines);
+        vector<int> flat_global(num_machines * num_machines);
+
+        for (int i = 0; i < num_machines; i++) {
+            for (int j = 0; j < num_machines; j++) {
+                flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
             }
         }
 
-        if (_my_rank == MASTER_RANK) {
-            // Collect from one representative per machine (skip machine 0, that's master)
-            for (int w = 0; w < _num_workers; w++) {
-                // Only receive from machine representatives
-                bool is_rep = true;
-                for (auto& [rank, machine] : _rank_to_machine) {
-                    if (machine == _rank_to_machine[w] && rank < w) {
-                        is_rep = false;
-                        break;
-                    }
-                }
-                if (!is_rep) continue;
+        // Sum all workers' matrices into master
+        MPI_Reduce(
+            flat_local.data(), // send buffer
+            flat_global.data(), // where the final result goes
+            num_machines * num_machines, // num elements
+            MPI_INT, // datatype
+            MPI_SUM, // operation
+            MASTER_RANK, // root
+            MPI_COMM_WORLD // communicator
+        );
 
-                vector<int> row = recv_data<vector<int>>(w);
-                int m = _rank_to_machine[w];
-                for (int i = 0; i < num_machines; i++)
-                    _machine_comm_matrix[m][i] = row[i];
+        if (_my_rank == MASTER_RANK) {
+            // Reconstruct matrix
+            for (int i = 0; i < num_machines; i++) {
+                for (int j = 0; j < num_machines; j++) {
+                    _machine_comm_matrix[i][j] =
+                        flat_global[i * num_machines + j];
+                }
             }
 
             cout << "\nMachine Communication Matrix (row=src, col=dst):" << endl;
@@ -491,12 +492,7 @@ public:
                     cout << setw(10) << _machine_comm_matrix[i][j];
                 cout << endl;
             }
-        } else if (am_machine_representative) {
-            vector<int> my_row(num_machines);
-            for (int i = 0; i < num_machines; i++)
-                my_row[i] = _machine_comm_matrix[_machine_id][i];
-            send_data(my_row, MASTER_RANK);
-        }
+        } 
 
         // each worker dumps its own vertex comm entries to a file
         char filename[64];
