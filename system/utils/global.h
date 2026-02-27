@@ -40,6 +40,7 @@ inline vector<vector<int>> _machine_comm_matrix;
 
 inline void init_machine_id() 
 {
+    printf("Rank %d hostname: %s\n", _my_rank, _hostname);
     gethostname(_hostname, sizeof(_hostname)); //gets the current machine's network name that we are running on
     
     // Gather all hostnames to master
