@@ -1,6 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <unistd.h>
 #include <unordered_map>
 #include <map>
 #include <mpi.h>
