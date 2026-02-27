@@ -1,7 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
-#include <concurrent_unordered_map.h>
+#include <tbb/concurrent_unordered_map.h>
 #include <unordered_map>
 #include <map>
 #include <mpi.h>
@@ -24,7 +24,7 @@ inline int _num_workers = 1;
 
 // inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
 
-inline concurrency::concurrent_unordered_map<int, concurrency::concurrent_unordered_map<int, int>> _vertex_comm_map; // unordered_map is not thread safe for multiple workers (unordered_concurrent_map)
+inline tbb::concurrent_unordered_map<int, tbb::concurrent_unordered_map<int, int>> _vertex_comm_map; // unordered_map is not thread safe for multiple workers (unordered_concurrent_map)
 // usage: _vertex_comm_map[src_vertex][dst_vertex] += count
 // dict[node] -> {paired_node: count}
 
