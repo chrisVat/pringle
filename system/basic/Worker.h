@@ -468,7 +468,7 @@ public:
 
         if (_my_rank == MASTER_RANK) {
             // Collect from one representative per machine (skip machine 0, that's master)
-            for (int w = 1; w < _num_workers; w++) {
+            for (int w = 0; w < _num_workers; w++) {
                 // Only receive from machine representatives
                 bool is_rep = true;
                 for (auto& [rank, machine] : _rank_to_machine) {
