@@ -5,7 +5,7 @@
 #include <fstream>
 #include <string>
 #include <iostream>
-#include <nlohmann/json.hpp>
+#include <cstdlib>
 #include "../utils/global.h"
 
 using json = nlohmann::json;
@@ -38,31 +38,30 @@ private:
 
     void load_mapping()
     {
-        std::ifstream f("_small_twitch_node_ranks.json");   // <-- worker assignment file path here
+        std::ifstream f("_small_twitch_node_ranks.txt");   // <-- worker assignment file path here
         if (!f.is_open()) {
             std::cerr << "Failed to open partition file" << std::endl;
             exit(1);
         }
 
-        json j;
-        f >> j;
+        int node, rank;
+        size_t count = 0;
 
-        for (auto it = j.begin(); it != j.end(); ++it) {
-            int node = std::stoi(it.key());
-            int rank = it.value();
+        while (f >> node >> rank) {
 
             if (rank < 0 || rank >= _num_workers) {
-                std::cerr << "Invalid worker rank " << rank
-                          << " for vertex " << node << std::endl;
-                exit(1);
+                std::cerr << "Invalid worker rank "
+                          << rank << " for vertex "
+                          << node << std::endl;
+                std::exit(1);
             }
 
             node_to_rank_[node] = rank;
+            count++;
         }
 
         std::cout << "Loaded custom partition for "
-                  << node_to_rank_.size()
-                  << " vertices." << std::endl;
+                  << count << " vertices." << std::endl;
     }
 };
 
