@@ -8,8 +8,6 @@
 #include <cstdlib>
 #include "../utils/global.h"
 
-using json = nlohmann::json;
-
 template <class KeyT>
 class CustomHash {
 public:
