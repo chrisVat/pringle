@@ -436,6 +436,9 @@ public:
         for (int i = 0; i < _num_workers; i++)
             my_row[i] = _worker_comm_matrix[_my_rank][i];
 
+        long long total_cross_machine = 0;
+        long long total_cross_worker = 0;
+
         if (_my_rank == MASTER_RANK) {
             for (int w = 1; w < _num_workers; w++) {
                 vector<int> row = recv_data<vector<int>>(w);
@@ -448,8 +451,6 @@ public:
                     cout << setw(10) << _worker_comm_matrix[i][j];
                 cout << endl;
             }
-
-            long long total_cross_worker = 0;
 
             for (int i = 0; i < _num_workers; i++) {
                 for (int j = 0; j < _num_workers; j++) {
@@ -503,8 +504,6 @@ public:
                     cout << setw(10) << _machine_comm_matrix[i][j];
                 cout << endl;
             }
-
-            long long total_cross_machine = 0;
 
             for (int i = 0; i < num_machines; i++) {
                 for (int j = 0; j < num_machines; j++) {
