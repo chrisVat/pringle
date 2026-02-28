@@ -36,7 +36,7 @@ private:
 
     void load_mapping()
     {
-        std::ifstream f("_small_twitch_node_ranks.txt");   // <-- worker assignment file path here
+        std::ifstream f("/home/ubuntu/pringle/sssp/_small_twitch_node_ranks.txt");   // <-- worker assignment file path here
         if (!f.is_open()) {
             std::cerr << "Failed to open partition file" << std::endl;
             exit(1);
