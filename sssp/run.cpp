@@ -2,7 +2,7 @@
 
 int main(int argc, char* argv[]){
 	init_workers();
-	pregel_sssp(2, "/smallTwitchFolder", "/outputSmallTwitchFolder", true);
+	pregel_sssp(2, "/largeTwitchFolder", "/outputLargeTwitchFolder", true);
 	worker_finalize();
 	return 0;
 }
