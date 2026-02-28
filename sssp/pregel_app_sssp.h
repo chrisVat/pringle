@@ -74,7 +74,7 @@ obinstream & operator>>(obinstream & m, SPMsg_pregel & v){
 
 //====================================
 
-class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel > // added custom partitioning CustomHash<VertexID>
+class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel, CustomHash<VertexID>> // added custom partitioning
 {
 	public:
 		void broadcast()
