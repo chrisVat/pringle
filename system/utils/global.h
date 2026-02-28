@@ -1,6 +1,7 @@
 #ifndef GLOBAL_H
 #define GLOBAL_H
 
+#include <unistd.h>
 #include <unordered_map>
 #include <map>
 #include <mpi.h>
@@ -23,14 +24,66 @@ inline int _num_workers = 1;
 
 // inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
 
-inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
+inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map; // unordered_map is not thread safe for multiple workers (unordered_concurrent_map)
 // usage: _vertex_comm_map[src_vertex][dst_vertex] += count
 // dict[node] -> {paired_node: count}
 
 inline long long _cross_worker_msg_num = 0;
 inline vector<vector<int>> _worker_comm_matrix;
 
-inline void init_comm_matrix() {
+inline char _hostname[256];
+inline int _machine_id = 0;
+inline unordered_map<int, int> _rank_to_machine;  // rank -> machine id
+
+inline long long _cross_machine_msg_num = 0;
+inline vector<vector<int>> _machine_comm_matrix;
+
+inline void init_machine_id() 
+{
+    printf("Rank %d hostname: %s\n", _my_rank, _hostname);
+    gethostname(_hostname, sizeof(_hostname)); //gets the current machine's network name that we are running on
+    
+    // Gather all hostnames to master
+    // Master assigns machine IDs based on unique hostnames
+    char all_hostnames[_num_workers][256];
+    MPI_Allgather(_hostname, 256, MPI_CHAR, all_hostnames, 256, MPI_CHAR, MPI_COMM_WORLD);
+    
+    // Build hostname -> machine_id mapping
+    unordered_map<string, int> host_to_machine;
+    int next_machine = 0;
+    for (int i = 0; i < _num_workers; i++) {
+        string h(all_hostnames[i]); // which machine is worker i on?
+        if (host_to_machine.find(h) == host_to_machine.end()) 
+            host_to_machine[h] = next_machine++; // first time seeing this hostname, assign new machine id
+        _rank_to_machine[i] = host_to_machine[h]; // worker i belongs to this machine
+    }
+    _machine_id = _rank_to_machine[_my_rank];
+    
+    if (_my_rank == MASTER_RANK) { // prints machine to worker mapping only in the master
+        printf("Machine assignments:\n");
+        for (auto& [rank, machine] : _rank_to_machine)
+            printf("  Rank %d -> Machine %d (%s)\n", rank, machine, all_hostnames[rank]);
+    }
+}
+
+inline void init_machine_matrix() 
+{
+    // Find number of unique machines
+    int num_machines = 0;
+    for (auto& [rank, machine] : _rank_to_machine) {
+        if (machine + 1 > num_machines)
+            num_machines = machine + 1;
+    }
+    
+    // Create num_machines x num_machines matrix of zeros
+    _machine_comm_matrix.assign(num_machines, vector<int>(num_machines, 0));
+    
+    if (_my_rank == MASTER_RANK)
+        printf("Initialized %dx%d machine comm matrix\n", num_machines, num_machines);
+}
+
+inline void init_comm_matrix() 
+{
     _worker_comm_matrix.assign(_num_workers, vector<int>(_num_workers, 0));
 }
 
@@ -47,8 +100,12 @@ inline void init_workers()
 {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &_num_workers);
+    init_machine_id();
+
     MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
     init_comm_matrix();
+    init_machine_matrix();
+    
     printf("DEBUG: worker %d sees _num_workers=%d\n", _my_rank, _num_workers);
 }
 
