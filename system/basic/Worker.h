@@ -508,6 +508,7 @@ public:
             }
         }
         fclose(f);
+        
         // dump graph
         ResetTimer(WORKER_TIMER);
         dump_partition(params.output_path.c_str());
