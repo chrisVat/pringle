@@ -448,13 +448,24 @@ public:
                     cout << setw(10) << _worker_comm_matrix[i][j];
                 cout << endl;
             }
+
+            long long total_cross_worker = 0;
+
+            for (int i = 0; i < _num_workers; i++) {
+                for (int j = 0; j < _num_workers; j++) {
+                    if (i != j) {
+                        total_cross_worker += _worker_comm_matrix[i][j];
+                    }
+                }
+            }
+
+            cout << "\nTotal Cross-Worker Messages: " << total_cross_worker << endl;
         } else {
             send_data(my_row, MASTER_RANK);
         }
 
         // Get number of machines
         int num_machines = (int)_machine_comm_matrix.size();
-
         
         // Flatten local matrix for MPI_Reduce
         vector<int> flat_local(num_machines * num_machines);
@@ -492,7 +503,24 @@ public:
                     cout << setw(10) << _machine_comm_matrix[i][j];
                 cout << endl;
             }
+
+            long long total_cross_machine = 0;
+
+            for (int i = 0; i < num_machines; i++) {
+                for (int j = 0; j < num_machines; j++) {
+                    if (i != j) {
+                        total_cross_machine += _machine_comm_matrix[i][j];
+                    }
+                }
+            }
+
+            cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
         } 
+
+        // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
+        // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
+        // If ratio ≈ 0.25 (for 4 machines) Only 25% of cross-worker traffic crosses machines.
+        cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
 
         // each worker dumps its own vertex comm entries to a file
         char filename[64];
@@ -508,7 +536,7 @@ public:
             }
         }
         fclose(f);
-        
+
         // dump graph
         ResetTimer(WORKER_TIMER);
         dump_partition(params.output_path.c_str());
