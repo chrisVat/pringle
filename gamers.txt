@@ -1,0 +1,2 @@
+https://snap.stanford.edu/data/twitch_gamers.html 
+download this and extrac tto twitch_gamers/
