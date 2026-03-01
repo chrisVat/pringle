@@ -1,6 +1,5 @@
 #include "basic/pregel-dev.h"
 #include "utils/CustomHash.h"
-#include "comm_trace_utils.h"
 #include <float.h>
 using namespace std;
 
