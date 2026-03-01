@@ -526,7 +526,7 @@ public:
         int start_node = params.source_id; // for SSSP specifically
         
         char filename[128];
-        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, src);
+        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
         FILE* f = fopen(filename, "w");
         fprintf(f, "source,src_vertex,dst_vertex,count\n");
 
