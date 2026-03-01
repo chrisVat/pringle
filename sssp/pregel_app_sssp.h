@@ -1,5 +1,6 @@
 #include "basic/pregel-dev.h"
 #include "utils/CustomHash.h"
+#include "comm_trace_utils.h"
 #include <float.h>
 using namespace std;
 
@@ -189,8 +190,13 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	param.output_path=out_path;
 	param.force_write=true;
 	param.native_dispatcher=false;
+	param.source_id = srcID; // pass source ID for metrics
 	SPWorker_pregel worker;
 	SPCombiner_pregel combiner;
 	if(use_combiner) worker.setCombiner(&combiner);
 	worker.run(param);
+
+	if(_my_rank == MASTER_RANK) {
+        merge_worker_files(srcID);
+    }
 }

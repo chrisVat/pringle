@@ -5,6 +5,7 @@
 #include <vector>
 #include "../utils/global.h"
 #include "MessageBuffer.h"
+#include "metrics_logger.h"
 #include <string>
 #include "../utils/communication.h"
 #include "../utils/ydhdfs.h"
@@ -522,19 +523,41 @@ public:
         cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
 
         // each worker dumps its own vertex comm entries to a file
-        char filename[64];
-        sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
+        int start_node = params.source_id; // for SSSP specifically
+        
+        char filename[128];
+        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, src);
         FILE* f = fopen(filename, "w");
-        fprintf(f, "src_vertex,dst_vertex,count\n");
+        fprintf(f, "source,src_vertex,dst_vertex,count\n");
+
         for (auto& outer : _vertex_comm_map) {
-            int src = outer.first;
+            int src_vertex = outer.first;
             for (auto& inner : outer.second) {
-                int dst = inner.first;
+                int dst_vertex = inner.first;
                 int count = inner.second;
-                fprintf(f, "%d,%d,%d\n", src, dst, count);
+                fprintf(f, "%d,%d,%d,%d\n", start_node, src_vertex, dst_vertex, count);
             }
         }
         fclose(f);
+
+        if (_my_rank == MASTER_RANK) {
+            double comm_time  = get_timer(COMMUNICATION_TIMER);
+            double ser_time   = get_timer(SERIALIZATION_TIMER);
+            double trans_time = get_timer(TRANSFER_TIMER);
+            double compute_time = get_timer(WORKER_TIMER);
+
+            write_metrics(
+                start_node,
+                global_step_num,
+                global_msg_num,
+                comm_time,
+                ser_time,
+                trans_time,
+                compute_time,
+                total_cross_worker,
+                total_cross_machine
+            );
+        }
 
         // dump graph
         ResetTimer(WORKER_TIMER);
