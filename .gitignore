@@ -6,3 +6,8 @@ sssp/_small_twitch_node_ranks.txt
 system/utils/_small_twitch_node_ranks.json
 the_pregglenator_62000_v15/_large_twitch_vertex_comm.json
 the_pregglenator_62000_v15/_large_twitch_assignment_ours.json
+transforming_scripts/all_merged_agg.csv
+
+the_pregglenator_62000_v15/(OLD)_large_twitch_vertex_comm.json
+the_pregglenator_62000_v15/(OLD)_large_twitch_assignment_ours.json
+sssp/(OLD)_large_twitch_node_ranks.txt
