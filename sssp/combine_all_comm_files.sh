@@ -1,5 +1,5 @@
 #!/bin/bash
-TMP="/tmp/all_merged.csv"
+TMP="/home/ubuntu/all_merged.csv"
 
 # Write header once
 hdfs dfs -cat /comm_traces/src_47211/merged.csv | head -1 > $TMP
