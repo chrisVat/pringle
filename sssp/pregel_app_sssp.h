@@ -197,6 +197,6 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	worker.run(param);
 
 	if(_my_rank == MASTER_RANK) {
-        merge_worker_files(srcID);
+        merge_worker_files(srcID, _num_workers);
     }
 }
