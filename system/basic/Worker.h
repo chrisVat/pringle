@@ -344,7 +344,7 @@ public:
         //send vertices according to hash_id (reduce)
         sync_graph();
 
-        // ---- DEBUG: print vertex distribution ----
+        // print vertex distribution 
         cout << "Rank " << _my_rank 
             << " vertex count after sync_graph: " 
             << vertexes.size() << endl;
@@ -352,7 +352,6 @@ public:
         message_buffer->init(vertexes);
 
         init_comm_matrix();
-        //printf("DEBUG: worker %d sees _num_workers=%d, matrix size=%zu\n", _my_rank, _num_workers, _worker_comm_matrix.size());
             
         //barrier for data loading
         worker_barrier(); //@@@@@@@@@@@@@
@@ -520,7 +519,9 @@ public:
         // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
         // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
         // If ratio ≈ 0.25 (for 4 machines) Only 25% of cross-worker traffic crosses machines.
-        cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
+        if (_my_rank == MASTER_RANK) {
+            cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
+        }
 
         // each worker dumps its own vertex comm entries to a file
         int start_node = params.source_id; // for SSSP specifically
@@ -542,9 +543,13 @@ public:
         fclose(f);
         
         // make dir and write to hdfs 
-        char mkdir_cmd[512];
-        sprintf(mkdir_cmd, "hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
-        system(mkdir_cmd);
+        worker_barrier();
+        if (_my_rank == MASTER_RANK) {
+            char mkdir_cmd[512];
+            sprintf(mkdir_cmd, "hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
+            system(mkdir_cmd);
+        }
+        worker_barrier();
 
         char hdfs_cmd[512];
         sprintf(hdfs_cmd, "hdfs dfs -put -f %s /comm_traces/src_%d/staging/", filename, start_node);

@@ -40,9 +40,10 @@ inline vector<vector<int>> _machine_comm_matrix;
 
 inline void init_machine_id() 
 {
-    printf("Rank %d hostname: %s\n", _my_rank, _hostname);
     gethostname(_hostname, sizeof(_hostname)); //gets the current machine's network name that we are running on
-    
+    if (strlen(_hostname) == 0)
+        sprintf(_hostname, "worker_%d", _my_rank);
+
     // Gather all hostnames to master
     // Master assigns machine IDs based on unique hostnames
     char all_hostnames[_num_workers][256];
@@ -61,8 +62,9 @@ inline void init_machine_id()
     
     if (_my_rank == MASTER_RANK) { // prints machine to worker mapping only in the master
         printf("Machine assignments:\n");
-        for (auto& [rank, machine] : _rank_to_machine)
-            printf("  Rank %d -> Machine %d (%s)\n", rank, machine, all_hostnames[rank]);
+        for (int r = 0; r < _num_workers; r++)
+            printf("  Rank %2d -> Machine %d (%s)\n", r, _rank_to_machine[r], all_hostnames[r]);
+        printf("Initialized %dx%d machine comm matrix\n", (int)host_to_machine.size(), (int)host_to_machine.size());
     }
 }
 
@@ -106,7 +108,7 @@ inline void init_workers()
     init_comm_matrix();
     init_machine_matrix();
 
-    printf("DEBUG: worker %d sees _num_workers=%d\n", _my_rank, _num_workers);
+    // printf("DEBUG: worker %d sees _num_workers=%d\n", _my_rank, _num_workers);
 }
 
 inline void worker_finalize()
