@@ -1,5 +1,4 @@
 #include "metrics_logger.h"
-#include <fstream>
 #include <sys/stat.h>
 
 bool file_exists(const std::string& name) {
@@ -25,40 +24,31 @@ void write_metrics(
     // Ensure metrics directory exists
     system("hdfs dfs -mkdir -p /comm_traces/metrics/");
 
-    std::string local_file = "metrics_tmp.csv";
-    std::ofstream out(local_file);
-
-    // Write ONLY the data row (no header)
-    out << source_id << ","
-        << supersteps << ","
-        << total_msgs << ","
-        << comm_time << ","
-        << ser_time << ","
-        << trans_time << ","
-        << compute_time << ","
-        << cross_worker << ","
-        << cross_machine << ","
-        << ratio << "\n";
-
-    out.close();
+    const char* local_file = "metrics_tmp.csv";
+    FILE* out = fopen(local_file, "w"); 
+    fprintf(out, "%d,%lld,%lld,%f,%f,%f,%f,%lld,%lld,%f\n",
+            source_id, supersteps, total_msgs,
+            comm_time, ser_time, trans_time, compute_time,
+            cross_worker, cross_machine, ratio);
+    fclose(out);
 
     // If global metrics file does not exist, create it with header
     int exists = system("hdfs dfs -test -e /comm_traces/metrics/merged_metrics.csv");
 
     if (exists != 0) {
-        std::ofstream header("metrics_header.csv");
-        header << "source,supersteps,total_msgs,"
-               << "comm_time,serialization_time,transfer_time,compute_time,"
-               << "cross_worker,cross_machine,ratio\n";
-        header.close();
+        FILE* header = fopen("metrics_header.csv", "w");
+        fprintf(header, "source,supersteps,total_msgs,"
+                        "comm_time,serialization_time,transfer_time,compute_time,"
+                        "cross_worker,cross_machine,ratio\n");
+        fclose(header);
 
         system("hdfs dfs -put metrics_header.csv /comm_traces/metrics/merged_metrics.csv");
-        std::remove("metrics_header.csv");
+        remove("metrics_header.csv");
     }
 
     // Append this run's row
-    system(("hdfs dfs -appendToFile " + local_file +
-            " /comm_traces/metrics/merged_metrics.csv").c_str());
-
-    std::remove(local_file.c_str());
+    char append_cmd[512];
+    sprintf(append_cmd, "hdfs dfs -appendToFile %s /comm_traces/metrics/merged_metrics.csv", local_file);
+    system(append_cmd);
+    remove(local_file);
 }
