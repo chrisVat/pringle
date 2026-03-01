@@ -105,7 +105,7 @@ inline void init_workers()
     MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
     init_comm_matrix();
     init_machine_matrix();
-    
+
     printf("DEBUG: worker %d sees _num_workers=%d\n", _my_rank, _num_workers);
 }
 
@@ -127,6 +127,7 @@ struct WorkerParams {
     string output_path;
     bool force_write;
     bool native_dispatcher; //true if input is the output of a previous blogel job
+    int source_id; // for SSSP specifically - passed to Worker for metrics reporting
 
     WorkerParams()
     {
