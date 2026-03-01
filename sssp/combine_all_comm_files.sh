@@ -11,7 +11,3 @@ for src_dir in $(hdfs dfs -ls /comm_traces | grep src_ | awk '{print $8}'); do
 done
 
 echo "Total lines: $(wc -l < $TMP)"
-
-# Push combined file to HDFS
-hdfs dfs -put -f $TMP /comm_traces/all_merged.csv
-echo "Done: $(hdfs dfs -ls /comm_traces/all_merged.csv)"
