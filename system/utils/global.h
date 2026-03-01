@@ -102,9 +102,8 @@ inline void init_workers()
 {
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &_num_workers);
-    init_machine_id();
-
     MPI_Comm_rank(MPI_COMM_WORLD, &_my_rank);
+    init_machine_id();
     init_comm_matrix();
     init_machine_matrix();
 
