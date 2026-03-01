@@ -75,7 +75,7 @@ obinstream & operator>>(obinstream & m, SPMsg_pregel & v){
 
 //====================================
 
-class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel, CustomHash<VertexID>> // added custom partitioning
+class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel> // added custom partitioning CustomHash<VertexID>
 {
 	public:
 		void broadcast()
@@ -196,7 +196,15 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	if(use_combiner) worker.setCombiner(&combiner);
 	worker.run(param);
 
+
 	if(_my_rank == MASTER_RANK) {
-        merge_worker_files(srcID, _num_workers);
+        // Merge all worker files into one HDFS file
+		char merge_cmd[512];
+		sprintf(merge_cmd,
+			"hdfs dfs -getmerge /comm_traces/src_%d/staging/ /tmp/merged_src_%d.csv && "
+			"hdfs dfs -put -f /tmp/merged_src_%d.csv /comm_traces/src_%d/merged.csv && "
+			"hdfs dfs -rm -r /comm_traces/src_%d/staging/",
+			srcID, srcID, srcID, srcID, srcID);
+		system(merge_cmd);
     }
 }

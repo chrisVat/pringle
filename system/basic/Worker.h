@@ -525,20 +525,29 @@ public:
         // each worker dumps its own vertex comm entries to a file
         int start_node = params.source_id; // for SSSP specifically
         
-        char filename[128];
-        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
-        FILE* f = fopen(filename, "w");
-        fprintf(f, "source,src_vertex,dst_vertex,count\n");
-
+        std::string filename = "vertex_comm_worker_" + std::to_string(_my_rank) + "_src_" + std::to_string(start_node) + ".csv";
+        std::ofstream f(filename);
+        if (_my_rank == 0) {
+            f << "source,src_vertex,dst_vertex,count\n";
+        }
         for (auto& outer : _vertex_comm_map) {
             int src_vertex = outer.first;
             for (auto& inner : outer.second) {
                 int dst_vertex = inner.first;
                 int count = inner.second;
-                fprintf(f, "%d,%d,%d,%d\n", start_node, src_vertex, dst_vertex, count);
+                f << start_node << "," << src_vertex << "," << dst_vertex << "," << count << "\n";
             }
         }
-        fclose(f);
+        f.close();
+        
+        // make dir and write to hdfs 
+        char mkdir_cmd[512];
+        sprintf(mkdir_cmd, "hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
+        system(mkdir_cmd);
+
+        std::string hdfs_cmd = "hdfs dfs -put -f " + filename + " /comm_traces/src_" + std::to_string(start_node) + "/staging/";
+        system(hdfs_cmd.c_str());
+        std::remove(filename.c_str());
 
         if (_my_rank == MASTER_RANK) {
             double comm_time  = get_timer(COMMUNICATION_TIMER);
