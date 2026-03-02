@@ -1,4 +1,5 @@
 #include "metrics_logger.h"
+#include "utils/global.h"
 #include <sys/stat.h>
 
 bool file_exists(const std::string& name) {
@@ -15,14 +16,20 @@ void write_metrics(
     double trans_time,
     double compute_time,
     long long cross_worker,
-    long long cross_machine
+    long long cross_machine,
+    int worker_rank
 ) {
     double ratio = 0.0;
     if (cross_worker > 0)
         ratio = (double)cross_machine / cross_worker;
 
     // Ensure metrics directory exists
-    system("hdfs dfs -mkdir -p /comm_traces/metrics/");
+    worker_barrier();
+    if (worker_rank == MASTER_RANK) {
+        system("hdfs dfs -mkdir -p /comm_traces/metrics/");
+
+    }
+    worker_barrier();
 
     const char* local_file = "metrics_tmp.csv";
     FILE* out = fopen(local_file, "w"); 

@@ -24,7 +24,7 @@ inline int _num_workers = 1;
 
 // inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
 
-inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map; // unordered_map is not thread safe for multiple workers (unordered_concurrent_map)
+inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
 // usage: _vertex_comm_map[src_vertex][dst_vertex] += count
 // dict[node] -> {paired_node: count}
 
