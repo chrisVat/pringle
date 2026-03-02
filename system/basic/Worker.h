@@ -362,7 +362,6 @@ public:
 
         init_timers();
         ResetTimer(WORKER_TIMER);
-        //init_comm_matrix();  // NEW: initialize communication matrix for instrumentation
         //supersteps
         global_step_num = 0;
         long long step_msg_num;
@@ -572,7 +571,8 @@ public:
                 trans_time,
                 compute_time,
                 total_cross_worker,
-                total_cross_machine
+                total_cross_machine,
+                _my_rank
             );
         }
 

@@ -10,5 +10,6 @@ void write_metrics(
     double trans_time,
     double compute_time,
     long long cross_worker,
-    long long cross_machine
+    long long cross_machine,
+    int worker_rank
 );
