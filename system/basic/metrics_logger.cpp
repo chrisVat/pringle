@@ -24,12 +24,7 @@ void write_metrics(
         ratio = (double)cross_machine / cross_worker;
 
     // Ensure metrics directory exists
-    worker_barrier();
-    if (worker_rank == MASTER_RANK) {
-        system("hdfs dfs -mkdir -p /comm_traces/metrics/");
-
-    }
-    worker_barrier();
+    system("hdfs dfs -mkdir -p /comm_traces/metrics/");
 
     const char* local_file = "metrics_tmp.csv";
     FILE* out = fopen(local_file, "w"); 
