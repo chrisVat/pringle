@@ -368,6 +368,12 @@ public:
         long long step_vadd_num;
         long long global_msg_num = 0;
         long long global_vadd_num = 0;
+        
+        // superstep tracking initialization
+        int max_supersteps = 50; // safe upper bound
+        init_superstep_tracking(max_supersteps);
+        double _run_start = MPI_Wtime(); // global reference time
+
         while (true) {
             global_step_num++;
             ResetTimer(4);
@@ -389,10 +395,26 @@ public:
                 agg->init();
             //===================
             clearBits();
+
+            // RECORD per-worker start time and active count BEFORE compute
+            double _step_start = MPI_Wtime() - _run_start;
+            int _active_before = active_count; // local worker's active count
+
             if (wakeAll == 1)
                 all_compute();
             else
                 active_compute();
+            
+            // RECORD per-worker end time AFTER compute (before sync/barrier)
+            double _step_end = MPI_Wtime() - _run_start;
+
+            // Store locally
+            if (global_step_num <= max_supersteps) {
+                _worker_step_start[global_step_num][_my_rank] = _step_start;
+                _worker_step_end[global_step_num][_my_rank]   = _step_end;
+                _worker_step_active[global_step_num][_my_rank] = _active_before;
+            }
+            
             message_buffer->combine();
             step_msg_num = master_sum_LL(message_buffer->get_total_msg());
             step_vadd_num = master_sum_LL(message_buffer->get_total_vadd());
@@ -429,6 +451,62 @@ public:
         PrintTimer("Total Computational Time", WORKER_TIMER);
         if (_my_rank == MASTER_RANK)
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
+        
+        // Gather all worker timing data to master via MPI_Gather
+        int total_steps = global_step_num;
+
+        for (int s = 1; s <= total_steps; s++) {
+            // Gather start times from all workers to master
+            double local_start  = _worker_step_start[s][_my_rank];
+            double local_end    = _worker_step_end[s][_my_rank];
+            int    local_active = _worker_step_active[s][_my_rank];
+
+            vector<double> all_starts(_num_workers);
+            vector<double> all_ends(_num_workers);
+            vector<int>    all_actives(_num_workers);
+
+            MPI_Gather(&local_start,  1, MPI_DOUBLE, all_starts.data(),  1, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Gather(&local_end,    1, MPI_DOUBLE, all_ends.data(),    1, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Gather(&local_active, 1, MPI_INT,    all_actives.data(), 1, MPI_INT,    MASTER_RANK, MPI_COMM_WORLD);
+
+            if (_my_rank == MASTER_RANK) {
+                for (int w = 0; w < _num_workers; w++) {
+                    _worker_step_start[s][w]  = all_starts[w];
+                    _worker_step_end[s][w]    = all_ends[w];
+                    _worker_step_active[s][w] = all_actives[w];
+                }
+            }
+        }
+
+        // Master writes CSV with columns: source, superstep, worker, start_time, end_time, duration, active_vertices
+        if (_my_rank == MASTER_RANK) {
+            char timing_file[256];
+            sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
+            FILE* tf = fopen(timing_file, "w");
+            fprintf(tf, "source,superstep,worker,start_time,end_time,duration,active_vertices\n");
+            for (int s = 1; s <= total_steps; s++) {
+                for (int w = 0; w < _num_workers; w++) {
+                    double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
+                    fprintf(tf, "%d,%d,%d,%.6f,%.6f,%.6f,%d\n",
+                        params.source_id, s, w,
+                        _worker_step_start[s][w],
+                        _worker_step_end[s][w],
+                        duration,
+                        _worker_step_active[s][w]);
+                }
+            }
+            fclose(tf);
+
+            // Upload to HDFS
+            char hdfs_mkdir[512];
+            sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
+            system(hdfs_mkdir);
+
+            char hdfs_put[512];
+            sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
+            system(hdfs_put);
+            remove(timing_file);
+        }
 
         // Every worker sends its row, master collects and prints
         vector<int> my_row(_num_workers);
@@ -524,19 +602,20 @@ public:
 
         // each worker dumps its own vertex comm entries to a file
         int start_node = params.source_id; // for SSSP specifically
-        
+
+        // each worker dumps its own vertex comm entries to a file, this keeps track of the current superstep now 
         char filename[256];
         sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
         FILE* f = fopen(filename, "w");
         if (_my_rank == 0) {
-            fprintf(f, "source,src_vertex,dst_vertex,count\n");
+            fprintf(f, "source,superstep,src_vertex,dst_vertex,count\n");
         }
-        for (auto& outer : _vertex_comm_map) {
-            int src_vertex = outer.first;
-            for (auto& inner : outer.second) {
-                int dst_vertex = inner.first;
-                int count = inner.second;
-                fprintf(f, "%d,%d,%d,%d\n", start_node, src_vertex, dst_vertex, count);
+        for (auto& [superstep, src_map] : _vertex_comm_map) {
+            for (auto& [src_vertex, dst_map] : src_map) {
+                for (auto& [dst_vertex, count] : dst_map) {
+                    fprintf(f, "%d,%d,%d,%d,%d\n", 
+                        start_node, superstep, src_vertex, dst_vertex, count);
+                }
             }
         }
         fclose(f);
