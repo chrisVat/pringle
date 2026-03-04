@@ -396,17 +396,17 @@ public:
             //===================
             clearBits();
 
-            // RECORD per-worker start time and active count BEFORE compute
+            // Record start time BEFORE compute
             double _step_start = MPI_Wtime() - _run_start;
-            int _active_before = active_count; // local worker's active count
 
             if (wakeAll == 1)
                 all_compute();
             else
                 active_compute();
             
-            // RECORD per-worker end time AFTER compute (before sync/barrier)
+            // RECORD per-worker end time and active count AFTER compute
             double _step_end = MPI_Wtime() - _run_start;
+            int _active_this_step = active_count;
 
             // Store locally
             if (global_step_num <= max_supersteps) {
@@ -624,13 +624,13 @@ public:
         worker_barrier();
         if (_my_rank == MASTER_RANK) {
             char mkdir_cmd[512];
-            sprintf(mkdir_cmd, "hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
+            sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
             system(mkdir_cmd);
         }
         worker_barrier();
 
         char hdfs_cmd[512];
-        sprintf(hdfs_cmd, "hdfs dfs -put -f %s /comm_traces/src_%d/staging/", filename, start_node);
+        sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
         system(hdfs_cmd);
 
         remove(filename);
