@@ -74,7 +74,7 @@ obinstream & operator>>(obinstream & m, SPMsg_pregel & v){
 
 //====================================
 
-class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel> // added custom partitioning CustomHash<VertexID>
+class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel, CustomHash<VertexID>> // added custom partitioning CustomHash<VertexID>
 {
 	public:
 		void broadcast()
@@ -197,7 +197,7 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 
 	// ALL workers must finish uploading before master merges
     worker_barrier();
-	
+
 	if(_my_rank == MASTER_RANK) {
         // Merge all worker files into one HDFS file
 		char merge_cmd[512];
