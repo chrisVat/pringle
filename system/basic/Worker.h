@@ -412,7 +412,7 @@ public:
             if (global_step_num <= max_supersteps) {
                 _worker_step_start[global_step_num][_my_rank] = _step_start;
                 _worker_step_end[global_step_num][_my_rank]   = _step_end;
-                _worker_step_active[global_step_num][_my_rank] = _active_before;
+                _worker_step_active[global_step_num][_my_rank] = _active_this_step;
             }
             
             message_buffer->combine();
