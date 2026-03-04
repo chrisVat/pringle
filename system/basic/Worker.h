@@ -413,6 +413,7 @@ public:
                 _worker_step_start[global_step_num][_my_rank] = _step_start;
                 _worker_step_end[global_step_num][_my_rank]   = _step_end;
                 _worker_step_active[global_step_num][_my_rank] = _active_this_step;
+                printf("DEBUG rank %d step %d active=%d\n", _my_rank, global_step_num, _active_this_step);
             }
             
             message_buffer->combine();
