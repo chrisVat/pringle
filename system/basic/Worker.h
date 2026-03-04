@@ -396,6 +396,15 @@ public:
             //===================
             clearBits();
 
+            // Count working vertices BEFORE compute (messages + active)
+            int _active_this_step = 0;
+            MessageBufT* mbuf = (MessageBufT*)get_message_buffer();
+            vector<MessageContainerT>& v_msgbufs = mbuf->get_v_msg_bufs();
+            for (int i = 0; i < (int)vertexes.size(); i++) {
+                if (vertexes[i]->is_active() || v_msgbufs[i].size() > 0)
+                    _active_this_step++;
+            }
+
             // Record start time BEFORE compute
             double _step_start = MPI_Wtime() - _run_start;
 
@@ -406,14 +415,13 @@ public:
             
             // RECORD per-worker end time and active count AFTER compute
             double _step_end = MPI_Wtime() - _run_start;
-            int _active_this_step = active_count;
 
             // Store locally
             if (global_step_num <= max_supersteps) {
                 _worker_step_start[global_step_num][_my_rank] = _step_start;
                 _worker_step_end[global_step_num][_my_rank]   = _step_end;
                 _worker_step_active[global_step_num][_my_rank] = _active_this_step;
-                printf("DEBUG rank %d step %d active=%d\n", _my_rank, global_step_num, _active_this_step);
+                // printf("DEBUG rank %d step %d active=%d\n", _my_rank, global_step_num, _active_this_step);
             }
             
             message_buffer->combine();
