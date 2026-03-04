@@ -24,9 +24,12 @@ inline int _num_workers = 1;
 
 // inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
 
-inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
-// usage: _vertex_comm_map[src_vertex][dst_vertex] += count
-// dict[node] -> {paired_node: count}
+// inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
+// // usage: _vertex_comm_map[src_vertex][dst_vertex] += count
+// // dict[node] -> {paired_node: count}
+
+// [superstep][src_vertex][dst_vertex] = count
+inline unordered_map<int, unordered_map<int, unordered_map<int, int>>> _vertex_comm_map;
 
 inline long long _cross_worker_msg_num = 0;
 inline vector<vector<int>> _worker_comm_matrix;
@@ -37,6 +40,21 @@ inline unordered_map<int, int> _rank_to_machine;  // rank -> machine id
 
 inline long long _cross_machine_msg_num = 0;
 inline vector<vector<int>> _machine_comm_matrix;
+
+// Per-superstep, per-worker timing and activity tracking
+// _worker_step_start[superstep][worker] = start time
+// _worker_step_end[superstep][worker] = end time
+// _worker_step_active[superstep][worker] = active vertex count
+inline vector<vector<double>> _worker_step_start;
+inline vector<vector<double>> _worker_step_end;
+inline vector<vector<int>>    _worker_step_active;
+
+inline void init_superstep_tracking(int max_supersteps) 
+{
+    _worker_step_start.assign(max_supersteps + 1, vector<double>(_num_workers, 0.0));
+    _worker_step_end.assign(max_supersteps + 1,   vector<double>(_num_workers, 0.0));
+    _worker_step_active.assign(max_supersteps + 1, vector<int>(_num_workers, 0));
+}
 
 inline void init_machine_id() 
 {

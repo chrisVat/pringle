@@ -195,6 +195,9 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	if(use_combiner) worker.setCombiner(&combiner);
 	worker.run(param);
 
+	// ALL workers must finish uploading before master merges
+    worker_barrier();
+
 	if(_my_rank == MASTER_RANK) {
         // Merge all worker files into one HDFS file
 		char merge_cmd[512];
