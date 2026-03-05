@@ -13,13 +13,13 @@ USER = "ubuntu"
 REGION = "us-east-2"
 AWS_PROFILE = "pregel"
 
-# Where the timing CSV lives on the master (this matches the patch I suggested)
+# Where the timing CSV lives on the master
 REMOTE_QUERY_TIMES = "/tmp/query_times.csv"
 
 # Where to save it locally
 LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls")
 
-# Your PEM path 
+# Your PEM path
 MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 
 
@@ -51,15 +51,30 @@ def get_master_dns():
     return masters[0] if masters else None
 
 
-def sftp_pull_file(hostname: str, remote_path: str, local_path: str):
+def sftp_pull_then_delete(hostname: str, remote_path: str, local_path: str):
+    """
+    Downloads remote_path to local_path, then deletes remote_path if download succeeds.
+    Deletion is done over the same SSH connection.
+    """
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(hostname=hostname, username=USER, key_filename=MASTER_KEY_PATH)
 
     try:
+        # Pull
         sftp = ssh.open_sftp()
-        sftp.get(remote_path, local_path)
-        sftp.close()
+        try:
+            sftp.get(remote_path, local_path)
+        finally:
+            sftp.close()
+
+        # Delete remote after successful pull
+        stdin, stdout, stderr = ssh.exec_command(f"rm -f {remote_path}")
+        rc = stdout.channel.recv_exit_status()
+        if rc != 0:
+            err = stderr.read().decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"Remote delete failed (rc={rc}): {err}")
+
     finally:
         ssh.close()
 
@@ -73,7 +88,6 @@ def parse_query_times_csv(path: str):
     with open(path, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         for r in reader:
-            # skip empty/bad rows quietly
             if not r:
                 continue
             try:
@@ -90,7 +104,6 @@ def parse_query_times_csv(path: str):
 
 
 def percentile(sorted_vals, p):
-    # p in [0, 100]
     if not sorted_vals:
         return None
     if p <= 0:
@@ -117,14 +130,15 @@ def main():
 
     print(f"Master: {master}")
     print(f"Pulling {REMOTE_QUERY_TIMES} -> {local_path}")
+    print("Will delete remote file after successful pull.")
 
     try:
-        sftp_pull_file(master, REMOTE_QUERY_TIMES, local_path)
+        sftp_pull_then_delete(master, REMOTE_QUERY_TIMES, local_path)
     except FileNotFoundError:
         print(f"Remote file not found: {REMOTE_QUERY_TIMES}", file=sys.stderr)
         return 1
     except Exception as e:
-        print(f"SFTP pull failed: {e}", file=sys.stderr)
+        print(f"SFTP pull/delete failed: {e}", file=sys.stderr)
         return 1
 
     rows = parse_query_times_csv(local_path)
