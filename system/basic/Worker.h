@@ -496,6 +496,8 @@ public:
                 }
             }
             fclose(tf);
+
+            /*
             char hdfs_mkdir[512];
             sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
             system(hdfs_mkdir);
@@ -503,6 +505,7 @@ public:
             sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
             system(hdfs_put);
             remove(timing_file);
+            */ // CHRISCOMMENT
         }
 
         vector<int> my_row(_num_workers);
@@ -533,7 +536,9 @@ public:
         }
         */ // CHRISCOMMENT
 
+
         int num_machines = (int)_machine_comm_matrix.size();
+        /*
         vector<int> flat_local(num_machines * num_machines);
         vector<int> flat_global(num_machines * num_machines);
         for (int i = 0; i < num_machines; i++)
@@ -541,7 +546,9 @@ public:
                 flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
         MPI_Reduce(flat_local.data(), flat_global.data(), num_machines * num_machines,
                    MPI_INT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        /*
+        */ // CHRISCOMMENT
+        
+                   /*
         if (_my_rank == MASTER_RANK) {
             for (int i = 0; i < num_machines; i++)
                 for (int j = 0; j < num_machines; j++)
@@ -560,6 +567,7 @@ public:
         }
         */ // CHRISCOMMENT
 
+        /*
         int start_node = params.source_id;
         char filename[256];
         sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
@@ -584,6 +592,8 @@ public:
         sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
         system(hdfs_cmd);
         remove(filename);
+        */ // CHRISCOMMENT
+
 
         /*
         if (_my_rank == MASTER_RANK) {
@@ -595,7 +605,7 @@ public:
         */ // CHRISCOMMENT
 
         ResetTimer(WORKER_TIMER);
-        dump_partition(params.output_path.c_str());
+        // dump_partition(params.output_path.c_str()); // CHRISCOMMENT
         StopTimer(WORKER_TIMER);
         PrintTimer("Dump Time", WORKER_TIMER);
     }
@@ -747,9 +757,6 @@ public:
         double query_s = _run_end - _run_start;
 
         if (_my_rank == MASTER_RANK) {
-            printf("Query time (src=%d): %.3f seconds\n", params.source_id, query_s);
-
-            // append to local CSV
             const char* out_csv = "/tmp/query_times.csv";
             bool need_header = (access(out_csv, F_OK) != 0);
 
@@ -760,7 +767,7 @@ public:
                 }
                 fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
                         params.source_id,
-                        query_s,
+                        (_run_end - _run_start),
                         global_step_num,
                         global_msg_num,
                         global_vadd_num);
@@ -768,10 +775,6 @@ public:
             } else {
                 perror("fopen /tmp/query_times.csv");
             }
-
-            // OPTIONAL: also push to HDFS each query (cheap file)
-            // system("/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/query_times");
-            // system("/usr/local/hadoop/bin/hdfs dfs -put -f /tmp/query_times.csv /comm_traces/query_times/query_times.csv");
         }
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
@@ -875,6 +878,8 @@ public:
         int num_machines = (int)_machine_comm_matrix.size();
         
         // Flatten local matrix for MPI_Reduce
+        
+        /*
         vector<int> flat_local(num_machines * num_machines);
         vector<int> flat_global(num_machines * num_machines);
 
@@ -920,6 +925,7 @@ public:
             }
 
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
+            */ // CHRISCOMMENT
         } 
 
         // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
