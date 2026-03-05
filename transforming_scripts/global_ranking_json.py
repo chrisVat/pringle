@@ -1,7 +1,7 @@
 import json
 
 # Path to pregglenator output
-json_file = "_large_twitch_assignment_ours.json"
+json_file = "the_boogaloo.json"
 
 # Load JSON
 with open(json_file) as f:
