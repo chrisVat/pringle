@@ -18,13 +18,10 @@ void do_setup(const string& input, const string& output,
     init_workers();
 
     if (_my_rank == MASTER_RANK) {
-        unlink(PIPE_PATH);
-        mkfifo(PIPE_PATH, 0666);
         printf("[setup] Loading graph with %s partitioning...\n",
                g_use_custom_partition ? "custom" : "default");
         fflush(stdout);
     }
-    worker_barrier();
 
     WorkerParams param;
     param.input_path = input;
@@ -38,10 +35,14 @@ void do_setup(const string& input, const string& output,
     worker.setCombiner(&combiner);
     worker.load(param);
 
+    // Create pipe AFTER graph is loaded so source_run.sh only proceeds once truly ready
     if (_my_rank == MASTER_RANK) {
+        unlink(PIPE_PATH);
+        mkfifo(PIPE_PATH, 0666);
         printf("[setup] Ready for queries.\n");
         fflush(stdout);
     }
+    worker_barrier();
 
     while (true) {
         int src_id = -2;
@@ -55,6 +56,11 @@ void do_setup(const string& input, const string& output,
         MPI_Bcast(&src_id, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
         if (src_id == -1) break;  // teardown sentinel
+
+        if (_my_rank == MASTER_RANK) {
+            printf("[setup] Running query src=%d\n", src_id);
+            fflush(stdout);
+        }
 
         src = src_id;  // set global read by SPVertex_pregel::compute()
 
