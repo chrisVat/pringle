@@ -103,6 +103,8 @@ void do_setup(const string& input, const string& output,
 // ---------------------------------------------------------------------------
 void do_query(int src_id)
 {
+    // print 
+    cout << "Running query with source vertex " << src_id << endl;
     int fd = open(PIPE_PATH, O_WRONLY);
     if (fd < 0) {
         perror("Cannot open query pipe (is setup running?)");

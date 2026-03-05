@@ -21,6 +21,7 @@ echo "Setup ready, running queries..."
 # Time just the queries (no setup/teardown cost)
 QUERIES_START=$(date +%s%N)
 while read src; do
+  echo "Running query for source node $src"
   ./run query $src
 done < $NODES
 QUERIES_END=$(date +%s%N)
