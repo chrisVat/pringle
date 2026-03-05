@@ -453,6 +453,9 @@ public:
             }
         }
         worker_barrier();
+        double _run_end = MPI_Wtime();
+        if (_my_rank == MASTER_RANK)
+            printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
         PrintTimer("- Serialization Time", SERIALIZATION_TIMER);
@@ -460,7 +463,7 @@ public:
         PrintTimer("Total Computational Time", WORKER_TIMER);
         if (_my_rank == MASTER_RANK)
             cout << "Total #msgs=" << global_msg_num << ", Total #vadd=" << global_vadd_num << endl;
-        
+
         // Gather all worker timing data to master via MPI_Gather
         int total_steps = global_step_num;
 
