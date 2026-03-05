@@ -179,6 +179,10 @@ typedef int VertexID;
 
 //============================
 //global variables
+// Partition mode — set before constructing Worker
+inline bool g_use_custom_partition = false;
+inline std::string g_partition_file = "";
+
 inline int global_step_num;
 inline int step_num()
 {

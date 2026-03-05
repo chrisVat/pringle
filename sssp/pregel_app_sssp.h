@@ -1,5 +1,5 @@
 #include "basic/pregel-dev.h"
-#include "utils/CustomHash.h"
+#include "utils/RuntimeHash.h"
 #include <float.h>
 using namespace std;
 
@@ -74,7 +74,7 @@ obinstream & operator>>(obinstream & m, SPMsg_pregel & v){
 
 //====================================
 
-class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel> // added custom partitioning CustomHash<VertexID>
+class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel, RuntimeHash<VertexID>>
 {
 	public:
 		void broadcast()
