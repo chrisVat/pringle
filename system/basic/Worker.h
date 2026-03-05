@@ -506,6 +506,8 @@ public:
         }
 
         vector<int> my_row(_num_workers);
+        /*
+        
         for (int i = 0; i < _num_workers; i++)
             my_row[i] = _worker_comm_matrix[_my_rank][i];
         long long total_cross_machine = 0;
@@ -529,6 +531,7 @@ public:
         } else {
             send_data(my_row, MASTER_RANK);
         }
+        */ // CHRISCOMMENT
 
         int num_machines = (int)_machine_comm_matrix.size();
         vector<int> flat_local(num_machines * num_machines);
@@ -538,6 +541,7 @@ public:
                 flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
         MPI_Reduce(flat_local.data(), flat_global.data(), num_machines * num_machines,
                    MPI_INT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+        /*
         if (_my_rank == MASTER_RANK) {
             for (int i = 0; i < num_machines; i++)
                 for (int j = 0; j < num_machines; j++)
@@ -554,6 +558,7 @@ public:
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
             cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
         }
+        */ // CHRISCOMMENT
 
         int start_node = params.source_id;
         char filename[256];

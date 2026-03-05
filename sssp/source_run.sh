@@ -1,8 +1,8 @@
 PARTITION="default"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/large_twitch_graph_partition.txt"
+PARTITION_FILE="/home/ubuntu/pringle/sssp/theboogalo3__1_1_1000.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
-NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_train.txt"
+NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
 
 # Clean up any stale state from a previous run
 rm -f /tmp/pringle_query_pipe /tmp/pringle_done
