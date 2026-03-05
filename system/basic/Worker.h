@@ -984,6 +984,7 @@ public:
         }
         worker_barrier();
 
+        /*
         char hdfs_cmd[512];
         sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
         system(hdfs_cmd);
@@ -1009,6 +1010,7 @@ public:
                 _my_rank
             );
         }
+        */ // CHRISCOMMENT
 
         // dump graph
         ResetTimer(WORKER_TIMER);
