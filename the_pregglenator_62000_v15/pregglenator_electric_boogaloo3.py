@@ -46,6 +46,7 @@ import random
 from collections import defaultdict, deque
 
 import pymetis
+from tqdm import tqdm
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -74,9 +75,10 @@ def load_comm_traces(traces_dir):
     comm_ss = defaultdict(lambda: defaultdict(float))
     recv_vx = defaultdict(lambda: defaultdict(float))
 
-    for path in paths:
+    for path in tqdm(paths, desc="  Reading traces", unit="file"):
         with open(path, newline="") as fh:
-            for row in csv.DictReader(fh):
+            for row in tqdm(csv.DictReader(fh), desc=f"    {os.path.basename(os.path.dirname(path))}",
+                            unit="row", leave=False):
                 s = int(row["superstep"])
                 u = int(row["src_vertex"])
                 v = int(row["dst_vertex"])
@@ -280,7 +282,7 @@ def build_vertex_edge_index(comm_by_superstep, n):
     """
     send_agg = defaultdict(lambda: defaultdict(float))
     recv_agg = defaultdict(lambda: defaultdict(float))
-    for edges in comm_by_superstep.values():
+    for edges in tqdm(comm_by_superstep.values(), desc="  Edge index", unit="superstep"):
         for (u, v), c in edges.items():
             if 0 <= u < n and 0 <= v < n:
                 send_agg[u][v] += c
@@ -424,83 +426,86 @@ def sa_optimize(
     loads     = _initial_loads(part_of, active_recv, num_parts)
     underfull = set(p for p in range(num_parts) if sizes[p] < capacity)
 
-    cooling   = ((t_end / t_start) ** (1.0 / (sa_iters - 1))
-                 if sa_iters > 1 and t_start > t_end else 1.0)
-    T         = t_start
-    accepted  = 0
-    log_every = max(1, sa_iters // 10)
+    cooling  = ((t_end / t_start) ** (1.0 / (sa_iters - 1))
+                if sa_iters > 1 and t_start > t_end else 1.0)
+    T        = t_start
+    accepted = 0
+    # Update postfix every 0.5% of iterations to keep overhead low
+    post_every = max(1, sa_iters // 200)
 
-    for iteration in range(sa_iters):
-        v      = rng.randrange(n)
-        p_from = part_of[v]
+    with tqdm(total=sa_iters, desc=label, unit="iter", mininterval=0.5) as pbar:
+        for iteration in range(sa_iters):
+            v      = rng.randrange(n)
+            p_from = part_of[v]
 
-        # Candidate partitions: underfull and not the current one.
-        # underfull is a maintained set so no O(num_parts) scan per iteration.
-        cands = [p for p in underfull if p != p_from]
-        if not cands:
-            T *= cooling
-            continue
-
-        p_to = rng.choice(cands)
-
-        # ── Δ communication cost ─────────────────────────────────────────────
-        # Edges are (neighbor, total_count) aggregated across all supersteps.
-        d_comm = 0.0
-        for dst, c in send_edges.get(v, []):
-            pd      = part_of[dst]
-            d_comm += c_comm * c * ((0 if pd == p_to else 1) -
-                                    (0 if pd == p_from else 1))
-        for src, c in recv_edges.get(v, []):
-            ps      = part_of[src]
-            d_comm += c_comm * c * ((0 if ps == p_to else 1) -
-                                    (0 if ps == p_from else 1))
-
-        # ── Δ compute-bottleneck cost ────────────────────────────────────────
-        # Only iterate supersteps where v is actually active (active_recv).
-        d_compute = 0.0
-        for s, rv in active_recv.get(v, []):
-            sl = loads.get(s)
-            if sl is None:
+            # Candidate partitions: underfull and not the current one.
+            # underfull is a maintained set so no O(num_parts) scan per iteration.
+            cands = [p for p in underfull if p != p_from]
+            if not cands:
+                T *= cooling
+                pbar.update(1)
                 continue
-            old_max    = max(sl)
-            sl[p_from] -= rv
-            sl[p_to]   += rv
-            new_max    = max(sl)
-            sl[p_from] += rv   # restore
-            sl[p_to]   -= rv
-            d_compute  += c_node * (new_max - old_max)
 
-        delta = d_comm + d_compute
+            p_to = rng.choice(cands)
 
-        # ── Accept / reject ──────────────────────────────────────────────────
-        if delta < 0.0 or rng.random() < math.exp(-delta / T):
-            part_of[v]    = p_to
-            sizes[p_from] -= 1
-            sizes[p_to]   += 1
+            # ── Δ communication cost ─────────────────────────────────────────
+            # Edges are (neighbor, total_count) aggregated across all supersteps.
+            d_comm = 0.0
+            for dst, c in send_edges.get(v, []):
+                pd      = part_of[dst]
+                d_comm += c_comm * c * ((0 if pd == p_to else 1) -
+                                        (0 if pd == p_from else 1))
+            for src, c in recv_edges.get(v, []):
+                ps      = part_of[src]
+                d_comm += c_comm * c * ((0 if ps == p_to else 1) -
+                                        (0 if ps == p_from else 1))
 
-            # Maintain underfull set
-            if sizes[p_from] < capacity:
-                underfull.add(p_from)
-            if sizes[p_to] >= capacity:
-                underfull.discard(p_to)
-
-            # Commit load changes
+            # ── Δ compute-bottleneck cost ────────────────────────────────────
+            # Only iterate supersteps where v is actually active (active_recv).
+            d_compute = 0.0
             for s, rv in active_recv.get(v, []):
                 sl = loads.get(s)
-                if sl is not None and rv:
-                    sl[p_from] -= rv
-                    sl[p_to]   += rv
-            accepted += 1
+                if sl is None:
+                    continue
+                old_max    = max(sl)
+                sl[p_from] -= rv
+                sl[p_to]   += rv
+                new_max    = max(sl)
+                sl[p_from] += rv   # restore
+                sl[p_to]   -= rv
+                d_compute  += c_node * (new_max - old_max)
 
-        T *= cooling
+            delta = d_comm + d_compute
 
-        if (iteration + 1) % log_every == 0:
-            rate = accepted / (iteration + 1)
-            print(f"  [{label}] {iteration+1:>8}/{sa_iters}  "
-                  f"T={T:.6f}  accept_rate={rate:.3f}")
+            # ── Accept / reject ──────────────────────────────────────────────
+            if delta < 0.0 or rng.random() < math.exp(-delta / T):
+                part_of[v]    = p_to
+                sizes[p_from] -= 1
+                sizes[p_to]   += 1
 
-    print(f"  [{label}] done — accepted {accepted}/{sa_iters} "
-          f"({100*accepted/sa_iters:.1f}%)")
+                # Maintain underfull set
+                if sizes[p_from] < capacity:
+                    underfull.add(p_from)
+                if sizes[p_to] >= capacity:
+                    underfull.discard(p_to)
+
+                # Commit load changes
+                for s, rv in active_recv.get(v, []):
+                    sl = loads.get(s)
+                    if sl is not None and rv:
+                        sl[p_from] -= rv
+                        sl[p_to]   += rv
+                accepted += 1
+
+            T *= cooling
+            pbar.update(1)
+
+            if (iteration + 1) % post_every == 0:
+                pbar.set_postfix(T=f"{T:.2e}",
+                                 accept=f"{100*accepted/(iteration+1):.1f}%")
+
+    tqdm.write(f"  [{label}] done — accepted {accepted}/{sa_iters} "
+               f"({100*accepted/sa_iters:.1f}%)")
     return part_of
 
 
@@ -536,7 +541,7 @@ def assign_workers_sa(
     worker_of = [-1] * n
     wpm       = []
 
-    for m in range(num_machines):
+    for m in tqdm(range(num_machines), desc="  Machines", unit="machine"):
         nodes_m     = sorted(u for u in range(n) if machine_of[u] == m)
         num_workers = max(1, math.ceil(len(nodes_m) / nodes_per_worker))
 
@@ -705,9 +710,9 @@ def main():
     ap.add_argument("--num_machines",      type=int, default=4)
     ap.add_argument("--nodes_per_machine", type=int,  default=-1)
     ap.add_argument("--nodes_per_worker",  type=int,   default=-1)
-    ap.add_argument("--c_net",             type=float, default=1000.0,
+    ap.add_argument("--c_net",             type=float, default=500.0,
                     help="Cost weight for cross-machine messages (default 1000)")
-    ap.add_argument("--c_proc",            type=float, default=50.0,
+    ap.add_argument("--c_proc",            type=float, default=1.0,
                     help="Cost weight for cross-worker same-machine messages (default 50)")
     ap.add_argument("--c_node",            type=float, default=1.0,
                     help="Cost weight per unit of vertex compute load (default 1)")
@@ -721,7 +726,7 @@ def main():
     ap.add_argument("--t_end",             type=float, default=1e-4,
                     help="SA end temperature, shared by machine and worker SA (default 1e-4)")
     ap.add_argument("--seed",              type=int,   default=42)
-    ap.add_argument("--output",            default='theboogalo3.json',
+    ap.add_argument("--output",            default='theboogalo3__1_1_500.json',
                     help="Output JSON path")
     args = ap.parse_args()
 
