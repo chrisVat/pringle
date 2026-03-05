@@ -11,7 +11,7 @@ import argparse
 import os
 import subprocess
 import paramiko
-from transforming_scripts.global_ranking_json import convert_ranking
+from transforming_scripts.global_ranking_json_mine import convert_ranking
 
 # --- CONFIGURATION ---
 USER = "ubuntu"
@@ -20,10 +20,10 @@ REGION = "us-east-2"
 MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
 
-DEFAULT_JSON     = "theboogalo3__1_10_100.json"
+DEFAULT_JSON     = "the_pregglenator_62000_v15/theboogalo3__1_1_500.json"
 PARTITIONS_DIR   = "partitions_txt"
-REMOTE_DIR       = "/home/ubuntu/rpingle/sssp/"
-REMOTE_NAME      = "cur_partition.txt"
+REMOTE_DIR       = "/home/ubuntu/pringle/sssp/"
+REMOTE_NAME      = "large_twitch_graph_partition.txt"
 
 
 # --- AWS ---
