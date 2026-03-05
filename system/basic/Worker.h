@@ -65,7 +65,7 @@ public:
         if (getAgg() != NULL)
             delete (FinalT*)global_agg;
         //worker_finalize();//put to run.cpp
-        worker_barrier(); //newly added for ease of multi-job programming in run.cpp
+        // worker_barrier(); //newly added for ease of multi-job programming in run.cpp
     }
 
     //==================================

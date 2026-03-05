@@ -130,7 +130,7 @@ def execute_ssh_command(hostname, commands, description, key_path):
 
 
 SYNC_CMDS = f"""
-cd {PRINGLE_DIR} && git fetch && git checkout {GIT_BRANCH} && git pull
+cd {PRINGLE_DIR} && git reset --hard HEAD~ && git fetch && git checkout {GIT_BRANCH} && git pull
 cd {SSSP_DIR} && make clean && make
 """
 
