@@ -925,8 +925,8 @@ public:
             }
 
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
-            */ // CHRISCOMMENT
         } 
+        */ // CHRISCOMMENT
 
         // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
         // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
