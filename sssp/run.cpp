@@ -69,8 +69,11 @@ void do_setup(const string& input, const string& output,
         param.output_path = out_buf;
         param.source_id = src_id;
 
+        if (_my_rank == MASTER_RANK) { printf("[debug] calling reset_for_query\n"); fflush(stdout); }
         worker.reset_for_query();
+        if (_my_rank == MASTER_RANK) { printf("[debug] calling run_query\n"); fflush(stdout); }
         worker.run_query(param);
+        if (_my_rank == MASTER_RANK) { printf("[debug] run_query returned\n"); fflush(stdout); }
 
         // merge per-worker comm trace files on HDFS
         worker_barrier();

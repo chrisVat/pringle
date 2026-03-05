@@ -361,8 +361,10 @@ public:
     void run_query(const WorkerParams& params)
     {
         if (_my_rank == MASTER_RANK) {
+            printf("[debug] run_query: calling dirCheck for output=%s\n", params.output_path.c_str()); fflush(stdout);
             if (dirCheck(params.input_path.c_str(), params.output_path.c_str(), _my_rank == MASTER_RANK, params.force_write) == -1)
                 exit(-1);
+            printf("[debug] run_query: dirCheck done, entering superstep loop\n"); fflush(stdout);
         }
         init_timers();
         ResetTimer(WORKER_TIMER);
