@@ -35,27 +35,51 @@ void do_setup(const string& input, const string& output,
     worker.setCombiner(&combiner);
     worker.load(param);
 
-    // Create pipe AFTER graph is loaded so source_run.sh only proceeds once truly ready
+    // after worker.load(param);
+
     if (_my_rank == MASTER_RANK) {
         unlink(PIPE_PATH);
-        mkfifo(PIPE_PATH, 0666);
+        if (mkfifo(PIPE_PATH, 0666) != 0) { perror("mkfifo"); exit(1); }
+    }
+
+    printf("[setup][rank %d] before barrier\n", _my_rank);
+    fflush(stdout);
+
+    worker_barrier();
+
+    printf("[setup][rank %d] after barrier\n", _my_rank);
+    fflush(stdout);
+
+    if (_my_rank == MASTER_RANK) {
         printf("[setup] Ready for queries.\n");
         fflush(stdout);
     }
-    worker_barrier();
 
     while (true) {
         int src_id = -2;
+
         if (_my_rank == MASTER_RANK) {
-            // blocks until ./run query writes a src_id
+            printf("[setup] Waiting for query on fifo...\n");
+            fflush(stdout);
+
             int fd = open(PIPE_PATH, O_RDONLY);
             if (fd < 0) { perror("open pipe"); break; }
-            read(fd, &src_id, sizeof(int));
+
+            // read exactly 4 bytes
+            int got = 0;
+            char* p = (char*)&src_id;
+            while (got < (int)sizeof(int)) {
+                int r = read(fd, p + got, sizeof(int) - got);
+                if (r < 0) { perror("read pipe"); close(fd); exit(1); }
+                if (r == 0) continue;
+                got += r;
+            }
             close(fd);
         }
+
         MPI_Bcast(&src_id, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
-        if (src_id == -1) break;  // teardown sentinel
+        if (src_id == -1) break;
 
         if (_my_rank == MASTER_RANK) {
             printf("[setup] Running query src=%d\n", src_id);
@@ -110,6 +134,7 @@ void do_query(int src_id)
         perror("Cannot open query pipe (is setup running?)");
         exit(1);
     }
+    cout << "Sending src_id " << src_id << " to setup..." << endl;
     write(fd, &src_id, sizeof(int));
     close(fd);
 
