@@ -450,8 +450,26 @@ public:
         }
         worker_barrier();
         double _run_end = MPI_Wtime();
-        if (_my_rank == MASTER_RANK)
+        if (_my_rank == MASTER_RANK) {
             printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
+
+            const char* out_csv = "/tmp/query_times.csv";
+            bool need_header = (access(out_csv, F_OK) != 0);
+            FILE* qf = fopen(out_csv, "a");
+            if (qf) {
+                if (need_header)
+                    fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
+                fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
+                        params.source_id,
+                        (_run_end - _run_start),
+                        global_step_num,
+                        global_msg_num,
+                        global_vadd_num);
+                fclose(qf);
+            } else {
+                perror("fopen /tmp/query_times.csv");
+            }
+        }
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
         PrintTimer("- Serialization Time", SERIALIZATION_TIMER);
@@ -939,6 +957,7 @@ public:
         int start_node = params.source_id; // for SSSP specifically
 
         // each worker dumps its own vertex comm entries to a file, this keeps track of the current superstep now 
+        /*
         char filename[256];
         sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
         FILE* f = fopen(filename, "w");
@@ -954,7 +973,8 @@ public:
             }
         }
         fclose(f);
-        
+        */ // CHRISCOMMENT
+
         // make dir and write to hdfs 
         worker_barrier();
         if (_my_rank == MASTER_RANK) {
