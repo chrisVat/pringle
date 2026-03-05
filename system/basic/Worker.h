@@ -585,13 +585,15 @@ public:
         system(hdfs_cmd);
         remove(filename);
 
+        /*
         if (_my_rank == MASTER_RANK) {
             write_metrics(start_node, global_step_num, global_msg_num,
                 get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
                 get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
                 total_cross_worker, total_cross_machine, _my_rank);
         }
-
+        */ // CHRISCOMMENT
+        
         ResetTimer(WORKER_TIMER);
         dump_partition(params.output_path.c_str());
         StopTimer(WORKER_TIMER);
