@@ -593,7 +593,7 @@ public:
                 total_cross_worker, total_cross_machine, _my_rank);
         }
         */ // CHRISCOMMENT
-        
+
         ResetTimer(WORKER_TIMER);
         dump_partition(params.output_path.c_str());
         StopTimer(WORKER_TIMER);
@@ -744,8 +744,35 @@ public:
         }
         worker_barrier();
         double _run_end = MPI_Wtime();
-        if (_my_rank == MASTER_RANK)
-            printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
+        double query_s = _run_end - _run_start;
+
+        if (_my_rank == MASTER_RANK) {
+            printf("Query time (src=%d): %.3f seconds\n", params.source_id, query_s);
+
+            // append to local CSV
+            const char* out_csv = "/tmp/query_times.csv";
+            bool need_header = (access(out_csv, F_OK) != 0);
+
+            FILE* qf = fopen(out_csv, "a");
+            if (qf) {
+                if (need_header) {
+                    fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
+                }
+                fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
+                        params.source_id,
+                        query_s,
+                        global_step_num,
+                        global_msg_num,
+                        global_vadd_num);
+                fclose(qf);
+            } else {
+                perror("fopen /tmp/query_times.csv");
+            }
+
+            // OPTIONAL: also push to HDFS each query (cheap file)
+            // system("/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/query_times");
+            // system("/usr/local/hadoop/bin/hdfs dfs -put -f /tmp/query_times.csv /comm_traces/query_times/query_times.csv");
+        }
         StopTimer(WORKER_TIMER);
         PrintTimer("Communication Time", COMMUNICATION_TIMER);
         PrintTimer("- Serialization Time", SERIALIZATION_TIMER);
