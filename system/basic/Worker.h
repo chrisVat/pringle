@@ -453,7 +453,16 @@ public:
         if (_my_rank == MASTER_RANK) {
             printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
 
-            const char* out_csv = "/tmp/query_times.csv";
+            // derive label from partition file basename (no extension), or "default"
+            std::string _part_label = "default";
+            if (g_use_custom_partition && !g_partition_file.empty()) {
+                size_t _sl = g_partition_file.find_last_of("/\\");
+                std::string _base = (_sl == std::string::npos) ? g_partition_file : g_partition_file.substr(_sl + 1);
+                size_t _dot = _base.rfind('.');
+                _part_label = (_dot == std::string::npos) ? _base : _base.substr(0, _dot);
+            }
+            char out_csv[512];
+            snprintf(out_csv, sizeof(out_csv), "/tmp/query_times_%s.csv", _part_label.c_str());
             bool need_header = (access(out_csv, F_OK) != 0);
             FILE* qf = fopen(out_csv, "a");
             if (qf) {
@@ -1006,7 +1015,7 @@ public:
                 trans_time,
                 compute_time,
                 total_cross_worker,
-                total_cross_machine,
+                total_cross_machine,ls
                 _my_rank
             );
         }
