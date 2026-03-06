@@ -290,8 +290,9 @@ def main():
     ap.add_argument("--directed", action="store_true", help="Treat edgelist as directed (default for edgelist)")
     ap.add_argument("--num_nodes", type=int, default=None, help="Optional explicit N. Otherwise inferred.")
     ap.add_argument("--num_machines", type=int, required=True)
-    ap.add_argument("--nodes_per_machine", type=int, required=True)
-    ap.add_argument("--nodes_per_worker", type=int, required=True)
+    ap.add_argument("--nodes_per_machine", type=int, default=-1, help="Optional nodes per machine. If not provided, inferred.")
+    ap.add_argument("--nodes_per_worker", type=int, default=-1, help="Optional nodes per worker. If not provided, inferred.")
+    ap.add_argument("--num_workers", type=int, default=4, help="Workers per machine (used to infer nodes_per_worker if not set).")
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--output", required=True, help="Output JSON mapping node -> machine/worker")
     args = ap.parse_args()
@@ -303,6 +304,14 @@ def main():
 
     n = infer_num_nodes(comm, explicit_n=args.num_nodes)
     und_adj = symmetrize_to_undirected(comm, n)
+
+    if args.nodes_per_machine == -1:
+        args.nodes_per_machine = math.ceil(n / args.num_machines)
+        print(f"Inferred nodes_per_machine: {args.nodes_per_machine}")
+
+    if args.nodes_per_worker == -1:
+        args.nodes_per_worker = math.ceil(args.nodes_per_machine / args.num_workers)
+        print(f"Inferred nodes_per_worker: {args.nodes_per_worker}")
 
     machine_of, worker_of, worker_counts = partition_two_level(
         und_adj,

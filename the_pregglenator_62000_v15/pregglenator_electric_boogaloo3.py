@@ -710,7 +710,7 @@ def main():
     ap.add_argument("--num_machines",      type=int, default=4)
     ap.add_argument("--nodes_per_machine", type=int,  default=-1)
     ap.add_argument("--nodes_per_worker",  type=int,   default=-1)
-    ap.add_argument("--c_net",             type=float, default=1000000.0,
+    ap.add_argument("--c_net",             type=float, default=100000.0,
                     help="Cost weight for cross-machine messages (default 1000000)")
     ap.add_argument("--c_proc",            type=float, default=10.0,
                     help="Cost weight for cross-worker same-machine messages (default 3)")
@@ -726,7 +726,7 @@ def main():
     ap.add_argument("--t_end",             type=float, default=1e-4,
                     help="SA end temperature, shared by machine and worker SA (default 1e-4)")
     ap.add_argument("--seed",              type=int,   default=42)
-    ap.add_argument("--output",            default='theboogalo3__1_10_1000000.json',
+    ap.add_argument("--output",            default='theboogalo3__1_10_100000.json',
                     help="Output JSON path")
     args = ap.parse_args()
 

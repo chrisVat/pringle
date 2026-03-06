@@ -487,10 +487,7 @@ def main():
     ap.add_argument("--directed", action="store_true", help="Treat edgelist as directed (default for edgelist)")
     ap.add_argument("--num_nodes", type=int, default=None, help="Optional explicit N. Otherwise inferred.")
     ap.add_argument("--num_machines", type=int, required=True)
-    ap.add_argument("--nodes_per_machine", type=int, required=True)
-
     ap.add_argument("--workers_per_machine", type=int, required=True, help="HARD exact worker count per machine")
-    ap.add_argument("--nodes_per_worker", type=int, required=True)
 
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--refine_machine_iters", type=int, default=200)
@@ -506,12 +503,16 @@ def main():
     n = infer_num_nodes(comm, explicit_n=args.num_nodes)
     und_adj = symmetrize_to_undirected(comm, n)
 
+    nodes_per_machine = math.ceil(n / args.num_machines)
+    nodes_per_worker = math.ceil(nodes_per_machine / args.workers_per_machine)
+    print(f"Inferred nodes_per_machine: {nodes_per_machine}, nodes_per_worker: {nodes_per_worker}")
+
     machine_of, worker_of, worker_counts = partition_two_level_fixed_workers(
         und_adj,
         num_machines=args.num_machines,
-        nodes_per_machine=args.nodes_per_machine,
+        nodes_per_machine=nodes_per_machine,
         workers_per_machine=args.workers_per_machine,
-        nodes_per_worker=args.nodes_per_worker,
+        nodes_per_worker=nodes_per_worker,
         seed=args.seed,
         refine_machine_iters=args.refine_machine_iters,
         refine_worker_iters=args.refine_worker_iters,
@@ -527,9 +528,9 @@ def main():
     stats = {
         "num_nodes": n,
         "num_machines": args.num_machines,
-        "nodes_per_machine": args.nodes_per_machine,
+        "nodes_per_machine": nodes_per_machine,
         "workers_per_machine": args.workers_per_machine,
-        "nodes_per_worker": args.nodes_per_worker,
+        "nodes_per_worker": nodes_per_worker,
         "machine_cut_weight": machine_cut,
         "machine_max_external_load": max_load,
         "machine_external_loads": per_loads,

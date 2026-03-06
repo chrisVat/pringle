@@ -14,3 +14,5 @@ sssp/(OLD)_large_twitch_node_ranks.txt
 
 comm_traces/*
 pregglenator_ready/*
+
+comm_traces_unweighted/*

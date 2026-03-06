@@ -1161,8 +1161,7 @@ def main():
     ap.add_argument("--num_nodes", type=int, default=None, help="Optional explicit N. Otherwise inferred.")
 
     ap.add_argument("--num_machines", type=int, required=True)
-    ap.add_argument("--nodes_per_machine", type=int, required=True)
-    ap.add_argument("--nodes_per_worker", type=int, required=True)
+    ap.add_argument("--num_workers", type=int, default=4, help="Workers per machine.")
 
     ap.add_argument("--alpha", type=float, default=50.0, help="Cross-machine penalty multiplier")
     ap.add_argument("--beta", type=float, default=1.0, help="Intra-machine cross-worker penalty multiplier")
@@ -1216,6 +1215,10 @@ def main():
     n = infer_num_nodes(comm, explicit_n=args.num_nodes)
     und_adj = symmetrize_to_undirected(comm, n)
 
+    nodes_per_machine = math.ceil(n / args.num_machines)
+    nodes_per_worker = math.ceil(nodes_per_machine / args.num_workers)
+    print(f"Inferred nodes_per_machine: {nodes_per_machine}, nodes_per_worker: {nodes_per_worker}")
+
     (
         machine_of,
         worker_of,
@@ -1227,8 +1230,8 @@ def main():
     ) = partition_one_shot_sa_alternating(
         und_adj=und_adj,
         num_machines=args.num_machines,
-        nodes_per_machine=args.nodes_per_machine,
-        nodes_per_worker=args.nodes_per_worker,
+        nodes_per_machine=nodes_per_machine,
+        nodes_per_worker=nodes_per_worker,
         alpha=args.alpha,
         beta=args.beta,
         seed=args.seed,
@@ -1262,8 +1265,8 @@ def main():
         part_sizes=part_sizes,
         alpha=args.alpha,
         beta=args.beta,
-        nodes_per_worker=args.nodes_per_worker,
-        nodes_per_machine=args.nodes_per_machine,
+        nodes_per_worker=nodes_per_worker,
+        nodes_per_machine=nodes_per_machine,
         lambda_worker=args.lambda_worker,
         lambda_machine=args.lambda_machine,
     )
@@ -1271,8 +1274,8 @@ def main():
     stats = {
         "num_nodes": n,
         "num_machines": args.num_machines,
-        "nodes_per_machine": args.nodes_per_machine,
-        "nodes_per_worker": args.nodes_per_worker,
+        "nodes_per_machine": nodes_per_machine,
+        "nodes_per_worker": nodes_per_worker,
         "workers_per_machine_fixed": workers_per_machine,
         "total_worker_parts": total_workers,
         "alpha": args.alpha,

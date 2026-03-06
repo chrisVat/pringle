@@ -16,14 +16,20 @@ INPUT         = "pregglenator_ready/src_9783.edgelist"
 FORMAT        = "edgelist"
 DIRECTED      = True   # pass --directed flag
 
-NUM_MACHINES       = 4
-NODES_PER_MACHINE  = -1
-NODES_PER_WORKER   = -1
-WORKERS_PER_MACHINE = 4   # used by gamer_mode_strict (required) and loose (optional)
+NUM_MACHINES        = 4
+NUM_WORKERS         = 4    # workers per machine (used by all variants)
 
 SEED = 42
 
 OUTPUT_DIR = "pregglenator_ready/outputs"
+
+# Toggle which variants to run
+RUN_PREGGLENATOR             = False
+RUN_PREGGLENATOR_LOOSE       = False
+RUN_PREGGLENATOR_ONESHOT     = False
+RUN_PREGGLENATOR_GAMER_MODE  = False
+RUN_PREGGLENATOR_GAMER_STRICT= True
+RUN_METIS                    = True
 # ──────────────────────────────────────────────────────────────
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -36,10 +42,8 @@ def base_args(output_name):
     args = [
         "--input",            INPUT,
         "--format",           FORMAT,
-        "--num_machines",     str(NUM_MACHINES),
-        "--nodes_per_machine", str(NODES_PER_MACHINE),
-        "--nodes_per_worker", str(NODES_PER_WORKER),
-        "--seed",             str(SEED),
+        "--num_machines",      str(NUM_MACHINES),
+        "--seed",              str(SEED),
         "--output",           os.path.join(OUTPUT_DIR, output_name),
     ]
     if DIRECTED:
@@ -47,25 +51,26 @@ def base_args(output_name):
     return args
 
 
-VARIANTS = [
-    {
+VARIANTS = [v for v in [
+    RUN_PREGGLENATOR and {
         "name": "pregglenator",
         "script": f"{BASE_DIR}/pregglenator.py",
-        "extra_args": [],
+        "extra_args": ["--num_workers", str(NUM_WORKERS)],
     },
-    {
+    RUN_PREGGLENATOR_LOOSE and {
         "name": "pregglenator_loose",
         "script": f"{BASE_DIR}/pregglenator_loose.py",
         "extra_args": [
-            # --workers_per_machine is optional for loose; set to WORKERS_PER_MACHINE or remove
-            "--workers_per_machine", str(WORKERS_PER_MACHINE),
-            "--worker_size_tol", "0.10",
+            "--num_workers",         str(NUM_WORKERS),
+            "--workers_per_machine", str(NUM_WORKERS),
+            "--worker_size_tol",     "0.10",
         ],
     },
-    {
+    RUN_PREGGLENATOR_ONESHOT and {
         "name": "pregglenator_oneshot",
         "script": f"{BASE_DIR}/pregglenator_oneshot.py",
         "extra_args": [
+            "--num_workers",            str(NUM_WORKERS),
             "--alpha",                  "20.0",
             "--beta",                   "1.0",
             "--alt_rounds",             "10",
@@ -80,24 +85,30 @@ VARIANTS = [
             # "--final_strict_repair",  # uncomment to enable strict repair at end
         ],
     },
-    {
+    RUN_PREGGLENATOR_GAMER_MODE and {
         "name": "pregglenator_gamer_mode",
         "script": f"{BASE_DIR}/pregglenator_gamer_mode.py",
         "extra_args": [
+            "--num_workers",          str(NUM_WORKERS),
             "--refine_machine_iters", "200",
             "--refine_worker_iters",  "100",
         ],
     },
-    {
+    RUN_PREGGLENATOR_GAMER_STRICT and {
         "name": "pregglenator_gamer_mode_strict",
         "script": f"{BASE_DIR}/pregglenator_gamer_mode_strict.py",
         "extra_args": [
-            "--workers_per_machine",  str(WORKERS_PER_MACHINE),  # REQUIRED for strict
+            "--workers_per_machine",  str(NUM_WORKERS),  # REQUIRED for strict
             "--refine_machine_iters", "200",
             "--refine_worker_iters",  "100",
         ],
     },
-]
+    RUN_METIS and {
+        "name": "metis",
+        "script": f"{BASE_DIR}/metis.py",
+        "extra_args": ["--num_workers", str(NUM_WORKERS)],
+    },
+] if v]
 
 
 def run_variant(variant):

@@ -391,9 +391,7 @@ def main():
     ap.add_argument("--directed", action="store_true", help="Treat edgelist as directed (default for edgelist)")
     ap.add_argument("--num_nodes", type=int, default=None, help="Optional explicit N. Otherwise inferred.")
     ap.add_argument("--num_machines", type=int, required=True)
-    ap.add_argument("--nodes_per_machine", type=int, required=True)
-
-    ap.add_argument("--nodes_per_worker", type=int, required=True, help="Target nodes per worker (soft)")
+    ap.add_argument("--num_workers", type=int, default=4, help="Workers per machine.")
     ap.add_argument("--workers_per_machine", type=int, default=None, help="Optional fixed workers per machine")
     ap.add_argument("--worker_size_tol", type=float, default=0.10, help="Allow +/- tol around target (default 0.10)")
 
@@ -409,11 +407,15 @@ def main():
     n = infer_num_nodes(comm, explicit_n=args.num_nodes)
     und_adj = symmetrize_to_undirected(comm, n)
 
+    nodes_per_machine = math.ceil(n / args.num_machines)
+    nodes_per_worker = math.ceil(nodes_per_machine / args.num_workers)
+    print(f"Inferred nodes_per_machine: {nodes_per_machine}, nodes_per_worker: {nodes_per_worker}")
+
     machine_of, worker_of, worker_counts = partition_two_level(
         und_adj,
         num_machines=args.num_machines,
-        nodes_per_machine=args.nodes_per_machine,
-        nodes_per_worker_target=args.nodes_per_worker,
+        nodes_per_machine=nodes_per_machine,
+        nodes_per_worker_target=nodes_per_worker,
         workers_per_machine=args.workers_per_machine,
         worker_size_tol=args.worker_size_tol,
         seed=args.seed,
@@ -426,8 +428,8 @@ def main():
     stats = {
         "num_nodes": n,
         "num_machines": args.num_machines,
-        "nodes_per_machine": args.nodes_per_machine,
-        "nodes_per_worker_target": args.nodes_per_worker,
+        "nodes_per_machine": nodes_per_machine,
+        "nodes_per_worker_target": nodes_per_worker,
         "workers_per_machine": args.workers_per_machine,
         "worker_size_tol": args.worker_size_tol,
         "machine_cut_weight": compute_cut_weight(und_adj, machine_of),
