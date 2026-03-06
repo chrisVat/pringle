@@ -17,8 +17,11 @@ from transforming_scripts.global_ranking_json_mine import convert_ranking
 USER = "ubuntu"
 REGION = "us-east-2"
 
-MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
-SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
+# MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+# SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
+
+MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
+SLAVE_KEY_PATH  = "/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
 DEFAULT_JSON     = "the_pregglenator_62000_v15/semi_random.json"
 PARTITIONS_DIR   = "partitions_txt"

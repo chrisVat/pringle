@@ -906,7 +906,7 @@ public:
         
         // Flatten local matrix for MPI_Reduce
         
-        /*
+        
         vector<int> flat_local(num_machines * num_machines);
         vector<int> flat_global(num_machines * num_machines);
 
@@ -953,7 +953,7 @@ public:
 
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
         } 
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
         // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
         // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
@@ -966,7 +966,7 @@ public:
         int start_node = params.source_id; // for SSSP specifically
 
         // each worker dumps its own vertex comm entries to a file, this keeps track of the current superstep now 
-        /*
+        
         char filename[256];
         sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
         FILE* f = fopen(filename, "w");
@@ -982,7 +982,7 @@ public:
             }
         }
         fclose(f);
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
         // make dir and write to hdfs 
         worker_barrier();
@@ -993,7 +993,7 @@ public:
         }
         worker_barrier();
 
-        /*
+        
         char hdfs_cmd[512];
         sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
         system(hdfs_cmd);
@@ -1019,7 +1019,7 @@ public:
                 _my_rank
             );
         }
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
         // dump graph
         ResetTimer(WORKER_TIMER);

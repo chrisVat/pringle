@@ -17,7 +17,8 @@ AWS_PROFILE = "pregel"
 LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls")
 
 # Your PEM path
-MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+# MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
 
 
 def get_aws_cli_instances(tag_value: str):

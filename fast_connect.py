@@ -22,11 +22,11 @@ USER = "ubuntu"
 REGION = "us-east-2"
 
 # Your specific PEM file paths
-#MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
-#SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
+SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
-MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
-SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
+# MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+# SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
 
 # Set to True to pull a git branch and recompile on master + all slaves before starting.
 SYNC_AND_RECOMPILE = True
