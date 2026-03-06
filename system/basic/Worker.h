@@ -524,7 +524,7 @@ public:
             }
             fclose(tf);
 
-            /*
+            
             char hdfs_mkdir[512];
             sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
             system(hdfs_mkdir);
@@ -532,11 +532,11 @@ public:
             sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
             system(hdfs_put);
             remove(timing_file);
-            */ // CHRISCOMMENT
+            // CHRISCOMMENT
         }
 
         vector<int> my_row(_num_workers);
-        /*
+        
         
         for (int i = 0; i < _num_workers; i++)
             my_row[i] = _worker_comm_matrix[_my_rank][i];
@@ -561,11 +561,11 @@ public:
         } else {
             send_data(my_row, MASTER_RANK);
         }
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
 
         int num_machines = (int)_machine_comm_matrix.size();
-        /*
+        
         vector<int> flat_local(num_machines * num_machines);
         vector<int> flat_global(num_machines * num_machines);
         for (int i = 0; i < num_machines; i++)
@@ -573,9 +573,9 @@ public:
                 flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
         MPI_Reduce(flat_local.data(), flat_global.data(), num_machines * num_machines,
                    MPI_INT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
         
-                   /*
+                   
         if (_my_rank == MASTER_RANK) {
             for (int i = 0; i < num_machines; i++)
                 for (int j = 0; j < num_machines; j++)
@@ -592,9 +592,9 @@ public:
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
             cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
         }
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
-        /*
+        
         int start_node = params.source_id;
         char filename[256];
         sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
@@ -619,17 +619,17 @@ public:
         sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
         system(hdfs_cmd);
         remove(filename);
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
 
-        /*
+        
         if (_my_rank == MASTER_RANK) {
             write_metrics(start_node, global_step_num, global_msg_num,
                 get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
                 get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
                 total_cross_worker, total_cross_machine, _my_rank);
         }
-        */ // CHRISCOMMENT
+        // CHRISCOMMENT
 
         ResetTimer(WORKER_TIMER);
         // dump_partition(params.output_path.c_str()); // CHRISCOMMENT
