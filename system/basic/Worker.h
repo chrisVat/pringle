@@ -1015,7 +1015,7 @@ public:
                 trans_time,
                 compute_time,
                 total_cross_worker,
-                total_cross_machine,ls
+                total_cross_machine,
                 _my_rank
             );
         }
