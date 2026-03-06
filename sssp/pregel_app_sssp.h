@@ -155,7 +155,9 @@ class SPWorker_pregel:public Worker<SPVertex_pregel>
 			while(pch=strtok(NULL, " "))
 			{
 				int nb=atoi(pch);
-				double len=1;
+				uint64_t h = (uint64_t)id * 2654435761ULL ^ (uint64_t)nb * 2246822519ULL;
+				h ^= h >> 33; h *= 0xff51afd7ed558ccdULL; h ^= h >> 33;
+				double len = 0.1 + 1.9 * (double)(h >> 11) / (double)(1ULL << 53);
 				SPEdge_pregel edge={len, nb};
 				v->value().edges.push_back(edge);
 			}
