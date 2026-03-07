@@ -12,6 +12,12 @@ from collections import defaultdict, deque
 import pymetis
 from tqdm import tqdm
 
+try:
+    import pandas as pd
+    _HAVE_PANDAS = True
+except ImportError:
+    _HAVE_PANDAS = False
+
 
 # =============================================================================
 # 1. Loading traces
@@ -62,32 +68,39 @@ def load_comm_traces_combiner_aware(traces_dir, max_traces=-1):
         task_name = os.path.basename(os.path.dirname(path))
         task_names.append(task_name)
 
-        # Aggregate within-file so repeated rows for the same (s,u,v) only become
-        # one PRESENCE event, while raw count is summed.
-        local_counts = defaultdict(float)
+        if _HAVE_PANDAS:
+            df = pd.read_csv(
+                path,
+                dtype={"superstep": "int32", "src_vertex": "int32",
+                       "dst_vertex": "int32", "count": "float32"},
+            )
+            df = df[(df["src_vertex"] != df["dst_vertex"]) & (df["count"] > 0)]
+            grouped = (
+                df.groupby(["superstep", "src_vertex", "dst_vertex"], sort=False)["count"]
+                .sum()
+            )
+            rows = grouped.reset_index().itertuples(index=False, name=None)
+        else:
+            local_counts = defaultdict(float)
+            with open(path, newline="") as fh:
+                reader = csv.reader(fh)
+                header = next(reader)
+                ci = {name: i for i, name in enumerate(header)}
+                si, ui, vi, ci_ = (ci["superstep"], ci["src_vertex"],
+                                    ci["dst_vertex"], ci["count"])
+                for row in reader:
+                    s, u, v, c = int(row[si]), int(row[ui]), int(row[vi]), float(row[ci_])
+                    if u != v and c > 0:
+                        local_counts[(s, u, v)] += c
+            rows = ((s, u, v, c) for (s, u, v), c in local_counts.items())
 
-        with open(path, newline="") as fh:
-            reader = csv.DictReader(fh)
-            for row in reader:
-                s = int(row["superstep"])
-                u = int(row["src_vertex"])
-                v = int(row["dst_vertex"])
-                c = float(row["count"])
-
-                if u == v:
-                    continue
-                if c <= 0:
-                    continue
-
-                local_counts[(s, u, v)] += c
-
-        for (s, u, v), csum in local_counts.items():
-            step_key = (task_name, s)
+        for s, u, v, csum in rows:
+            step_key = (task_name, int(s))
             step_keys_set.add(step_key)
 
-            out_presence[u].append((step_key, v))
-            raw_recv_by_vertex[v][step_key] += csum
-            pair_presence[(u, v)] += 1.0
+            out_presence[int(u)].append((step_key, int(v)))
+            raw_recv_by_vertex[int(v)][step_key] += float(csum)
+            pair_presence[(int(u), int(v))] += 1.0
 
     step_keys = sorted(step_keys_set, key=lambda x: (x[0], x[1]))
 

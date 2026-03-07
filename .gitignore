@@ -16,3 +16,5 @@ comm_traces/*
 pregglenator_ready/*
 
 comm_traces_unweighted/*
+
+*.comp_cache.pkl

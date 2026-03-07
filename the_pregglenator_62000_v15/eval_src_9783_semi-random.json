@@ -1,0 +1,208 @@
+{
+  "source": 9783,
+  "partition": "semi_random.json",
+  "total_time": 2.678,
+  "query_time": 2.678,
+  "communication_time": 0.468734,
+  "serialization_time": 0.035383,
+  "transfer_time": 0.432209,
+  "total_computational_time": 2.677874,
+  "total_msgs": 17823827,
+  "total_vadd": 0,
+  "dump_time": 0.0,
+  "note": "BFS from src=9783 on partition semi_random.json. Time elapsed = per-superstep wall-clock duration (seconds). Superstep 24 has 0 msgs (convergence check step).",
+  "supersteps": [
+    {
+      "superstep": 1,
+      "time": 0.00997782,
+      "msgs": 8,
+      "vadd": 0,
+      "cross_worker": 7,
+      "cross_machine": 6
+    },
+    {
+      "superstep": 2,
+      "time": 0.02192,
+      "msgs": 64410,
+      "vadd": 0,
+      "cross_worker": 60407,
+      "cross_machine": 48259
+    },
+    {
+      "superstep": 3,
+      "time": 0.231896,
+      "msgs": 1523549,
+      "vadd": 0,
+      "cross_worker": 1428346,
+      "cross_machine": 1142772
+    },
+    {
+      "superstep": 4,
+      "time": 0.366235,
+      "msgs": 1997402,
+      "vadd": 0,
+      "cross_worker": 1872529,
+      "cross_machine": 1497876
+    },
+    {
+      "superstep": 5,
+      "time": 0.352358,
+      "msgs": 1955974,
+      "vadd": 0,
+      "cross_worker": 1833598,
+      "cross_machine": 1466691
+    },
+    {
+      "superstep": 6,
+      "time": 0.32954,
+      "msgs": 1940495,
+      "vadd": 0,
+      "cross_worker": 1819042,
+      "cross_machine": 1455143
+    },
+    {
+      "superstep": 7,
+      "time": 0.296139,
+      "msgs": 1791352,
+      "vadd": 0,
+      "cross_worker": 1679267,
+      "cross_machine": 1343252
+    },
+    {
+      "superstep": 8,
+      "time": 0.249094,
+      "msgs": 1736916,
+      "vadd": 0,
+      "cross_worker": 1628353,
+      "cross_machine": 1302549
+    },
+    {
+      "superstep": 9,
+      "time": 0.205215,
+      "msgs": 1550101,
+      "vadd": 0,
+      "cross_worker": 1453025,
+      "cross_machine": 1162384
+    },
+    {
+      "superstep": 10,
+      "time": 0.178064,
+      "msgs": 1420340,
+      "vadd": 0,
+      "cross_worker": 1331446,
+      "cross_machine": 1065049
+    },
+    {
+      "superstep": 11,
+      "time": 0.132607,
+      "msgs": 1200749,
+      "vadd": 0,
+      "cross_worker": 1125429,
+      "cross_machine": 900492
+    },
+    {
+      "superstep": 12,
+      "time": 0.0858378,
+      "msgs": 953993,
+      "vadd": 0,
+      "cross_worker": 894254,
+      "cross_machine": 715636
+    },
+    {
+      "superstep": 13,
+      "time": 0.0553839,
+      "msgs": 700865,
+      "vadd": 0,
+      "cross_worker": 657064,
+      "cross_machine": 525447
+    },
+    {
+      "superstep": 14,
+      "time": 0.0389559,
+      "msgs": 461180,
+      "vadd": 0,
+      "cross_worker": 432311,
+      "cross_machine": 346263
+    },
+    {
+      "superstep": 15,
+      "time": 0.0236511,
+      "msgs": 278357,
+      "vadd": 0,
+      "cross_worker": 260813,
+      "cross_machine": 208790
+    },
+    {
+      "superstep": 16,
+      "time": 0.0167379,
+      "msgs": 144571,
+      "vadd": 0,
+      "cross_worker": 135492,
+      "cross_machine": 108400
+    },
+    {
+      "superstep": 17,
+      "time": 0.013634,
+      "msgs": 63777,
+      "vadd": 0,
+      "cross_worker": 59769,
+      "cross_machine": 47820
+    },
+    {
+      "superstep": 18,
+      "time": 0.010498,
+      "msgs": 26854,
+      "vadd": 0,
+      "cross_worker": 25253,
+      "cross_machine": 20229
+    },
+    {
+      "superstep": 19,
+      "time": 0.00905585,
+      "msgs": 9051,
+      "vadd": 0,
+      "cross_worker": 8467,
+      "cross_machine": 6740
+    },
+    {
+      "superstep": 20,
+      "time": 0.00982785,
+      "msgs": 2706,
+      "vadd": 0,
+      "cross_worker": 2548,
+      "cross_machine": 2040
+    },
+    {
+      "superstep": 21,
+      "time": 0.00905108,
+      "msgs": 1063,
+      "vadd": 0,
+      "cross_worker": 993,
+      "cross_machine": 795
+    },
+    {
+      "superstep": 22,
+      "time": 0.00875688,
+      "msgs": 87,
+      "vadd": 0,
+      "cross_worker": 83,
+      "cross_machine": 68
+    },
+    {
+      "superstep": 23,
+      "time": 0.00913715,
+      "msgs": 27,
+      "vadd": 0,
+      "cross_worker": 25,
+      "cross_machine": 18
+    },
+    {
+      "superstep": 24,
+      "time": 0.011261,
+      "msgs": 0,
+      "vadd": 0,
+      "cross_worker": 0,
+      "cross_machine": 0
+    }
+  ]
+}

@@ -48,6 +48,12 @@ from collections import defaultdict, deque
 import pymetis
 from tqdm import tqdm
 
+try:
+    import pandas as pd
+    _HAVE_PANDAS = True
+except ImportError:
+    _HAVE_PANDAS = False
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # 1.  Data loading
@@ -76,15 +82,31 @@ def load_comm_traces(traces_dir):
     recv_vx = defaultdict(lambda: defaultdict(float))
 
     for path in tqdm(paths, desc="  Reading traces", unit="file"):
-        with open(path, newline="") as fh:
-            for row in tqdm(csv.DictReader(fh), desc=f"    {os.path.basename(os.path.dirname(path))}",
-                            unit="row", leave=False):
-                s = int(row["superstep"])
-                u = int(row["src_vertex"])
-                v = int(row["dst_vertex"])
-                c = float(row["count"])
+        if _HAVE_PANDAS:
+            df = pd.read_csv(
+                path,
+                dtype={"superstep": "int32", "src_vertex": "int32",
+                       "dst_vertex": "int32", "count": "float32"},
+            )
+            df = df[df["src_vertex"] != df["dst_vertex"]]
+            grouped = (
+                df.groupby(["superstep", "src_vertex", "dst_vertex"], sort=False)["count"]
+                .sum()
+            )
+            for s, u, v, c in grouped.reset_index().itertuples(index=False, name=None):
+                s, u, v = int(s), int(u), int(v)
                 comm_ss[s][(u, v)] += c
                 recv_vx[v][s]      += c
+        else:
+            with open(path, newline="") as fh:
+                for row in tqdm(csv.DictReader(fh), desc=f"    {os.path.basename(os.path.dirname(path))}",
+                                unit="row", leave=False):
+                    s = int(row["superstep"])
+                    u = int(row["src_vertex"])
+                    v = int(row["dst_vertex"])
+                    c = float(row["count"])
+                    comm_ss[s][(u, v)] += c
+                    recv_vx[v][s]      += c
 
     total_comm = defaultdict(float)
     for edges in comm_ss.values():
