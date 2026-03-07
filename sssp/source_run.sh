@@ -1,5 +1,5 @@
 PARTITION="custom"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/semi_random.txt"
+PARTITION_FILE="/home/ubuntu/pringle/sssp/random.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
