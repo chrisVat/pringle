@@ -622,10 +622,10 @@ def main():
     ap.add_argument("--c_node", type=float, default=1.37e-07,
                     help="Cost weight for compute bottleneck based on raw recv load")
 
-    ap.add_argument("--joint_refine_passes", type=int, default=4,
+    ap.add_argument("--joint_refine_passes", type=int, default=2,
                     help="Number of greedy local-refinement passes after joint worker assignment")
 
-    ap.add_argument("--output", default="pregglenator_joint2_bigguy_fulltrain_4m.json",
+    ap.add_argument("--output", default="pregglenator_joint2_fulltrain_4m.json",
                     help="Output JSON path")
 
     args = ap.parse_args()

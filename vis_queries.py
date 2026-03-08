@@ -18,12 +18,8 @@ NAME_MAP = {
 
 def get_label(filename):
     base = os.path.basename(filename)
-    # Strip prefix like query_times_20260306_171948_
-    parts = base.replace(".csv", "").split("_", 4)
-    if len(parts) < 5:
-        return base
-    suffix = parts[4]  # e.g. "semi_random", "pregglenator_greedmax", etc.
-    # Remove leading "pregglenator_" if present (but keep plain "pregglenator")
+    # Strip prefix "query_times_" and extension
+    suffix = base.removeprefix("query_times_").removesuffix(".csv")
     for key, label in NAME_MAP.items():
         if suffix == key or suffix == f"pregglenator_{key}":
             return label

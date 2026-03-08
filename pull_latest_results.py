@@ -3,7 +3,6 @@ import csv
 import os
 import subprocess
 import sys
-import time
 
 import paramiko
 
@@ -91,6 +90,8 @@ def sftp_pull_then_delete(hostname: str, remote_path: str, local_path: str):
         # also if i dig a hole through the earth i might accidentally create a supernova that destroys the entire solar system and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
         # also if i dig a hole through the earth i might accidentally create a gamma ray burst that destroys the entire galaxy and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
         # so i guess ill comment this out actually 
+
+        
         # _, stdout, stderr = ssh.exec_command(f"rm -f {remote_path}") # CHRIS COMMENT BEGINS
         # rc = stdout.channel.recv_exit_status()
         #if rc != 0:
@@ -177,13 +178,12 @@ def main():
         return 1
 
     os.makedirs(LOCAL_OUT_DIR, exist_ok=True)
-    ts = time.strftime("%Y%m%d_%H%M%S")
 
     for remote_path in remote_files:
-        # e.g. /tmp/query_times_theboogalo3__1_1_1000.csv -> query_times_theboogalo3__1_1_1000_20260305_120000.csv
+        # e.g. /tmp/query_times_theboogalo3__1_1_1000.csv -> query_times_theboogalo3__1_1_1000.csv
         remote_name = os.path.basename(remote_path)          # query_times_<label>.csv
         stem = remote_name[len("query_times_"):-len(".csv")] # <label>
-        local_name = f"query_times_{ts}_{stem}.csv"
+        local_name = f"query_times_{stem}.csv"
         local_path = os.path.join(LOCAL_OUT_DIR, local_name)
 
         print(f"Pulling {remote_path} -> {local_path}")
