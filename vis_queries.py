@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-CSV_DIR = "query_times_pulls"
+CSV_DIR = "QUERY_RESULTS/"
 
 NAME_MAP = {
     "semi_random": "semi_random",
