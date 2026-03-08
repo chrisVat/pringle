@@ -20,10 +20,13 @@ REGION = "us-east-2"
 # MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 # SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
 
-MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
-SLAVE_KEY_PATH  = "/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+# MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
+# SLAVE_KEY_PATH  = "/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
-DEFAULT_JSON     = "the_pregglenator_62000_v15/semi_random.json"
+MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
+
+DEFAULT_JSON     = "the_pregglenator_62000_v15\\random.json"
 PARTITIONS_DIR   = "partitions_txt"
 REMOTE_DIR       = "/home/ubuntu/pringle/sssp/"
 REMOTE_NAME = DEFAULT_JSON.split("/")[-1].replace(".json", ".txt") 

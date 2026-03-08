@@ -22,15 +22,18 @@ USER = "ubuntu"
 REGION = "us-east-2"
 
 # Your specific PEM file paths
-MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
-SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+# MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
+# SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+
+MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
 
 # MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 # SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
 
 # Set to True to pull a git branch and recompile on master + all slaves before starting.
 SYNC_AND_RECOMPILE = True
-GIT_BRANCH = "eval_comm_new"          # branch to checkout on all nodes
+GIT_BRANCH = "eval"          # branch to checkout on all nodes
 PRINGLE_DIR = "/home/ubuntu/pringle"
 SSSP_DIR    = "/home/ubuntu/pringle/sssp"
 
