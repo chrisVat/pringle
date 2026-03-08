@@ -7,7 +7,6 @@ import subprocess
 
 # =========================
 # CONFIG
-# For Master's ~/hosts file, need to manually add entries for all slaves and master itself
 # =========================
 AWS_PROFILE = "pregel"
 REGION = "us-east-2"
@@ -16,6 +15,7 @@ AMI_ID = "ami-058c3349bade00a81"
 INSTANCE_TYPE = "t2.xlarge"
 KEY_NAME = "jasonpringle"   # EC2 key pair name in AWS
 PEM_PATH = "/Users/0225n/Documents/UCLA/26Winter/214_Pringle/jasonpringle.pem"
+PUBLIC_KEY_PATH = "/Users/0225n/Documents/UCLA/26Winter/214_Pringle/id_rsa.pub" # include ur master's public key and the publioc key of instance
 
 SECURITY_GROUP_IDS = ["sg-06fd397a9fb37f016"]
 SUBNET_ID = "subnet-0ece47ab7f2e26908"
@@ -25,12 +25,12 @@ HOSTNAME = "slave"
 
 SSH_USER = "ubuntu"
 IP_HOSTNAME_TXT_FILE = "instance_ip_hostname.txt"
-MASTER_PUBLIC_IP = "3.135.195.197"
+MASTER_PUBLIC_IP = "3.145.156.1"
 
-NUMBER_OF_INSTANCES_ALREADY = 3 # number of slaves u have rn
-NUMBER_OF_INSTANCES_TO_LAUNCH = 4 # total number of slaves
+NUMBER_OF_INSTANCES_ALREADY = 1 # number of slaves u have rn
+NUMBER_OF_INSTANCES_TO_LAUNCH = 3 # total number of slaves
 NUMBER_OF_WORKER_PER_INSTANCE = 4 # number of workers to run on each slave (based on number of cores, leave some room for OS)
-
+PUBLIC_KEY = open(PUBLIC_KEY_PATH).read().strip()
 
 def build_user_data(hostname: str) -> str:
     """
@@ -124,7 +124,16 @@ def execute_ssh_command(hostname: str, username: str, key_path: str, command: st
         ssh.close()
 
 def set_key_via_ssh(public_ip: str, hostname: str):
-    write_key_cmd = f"""ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R 'localhost'"""
+    write_key_cmd = f"""
+rm -rf ~/.ssh &&
+mkdir -p ~/.ssh &&
+chmod 700 ~/.ssh &&
+ssh-keygen -q -t rsa -f ~/.ssh/id_rsa -N "" &&
+cat ~/.ssh/id_rsa.pub > ~/.ssh/authorized_keys &&
+echo "{PUBLIC_KEY}" >> ~/.ssh/authorized_keys &&
+chmod 600 ~/.ssh/authorized_keys
+"""
+    # write_key_cmd = f"""ssh-keygen -f '/home/ubuntu/.ssh/known_hosts' -R 'localhost'"""
     execute_ssh_command(
         hostname=public_ip,
         username=SSH_USER,
@@ -132,20 +141,6 @@ def set_key_via_ssh(public_ip: str, hostname: str):
         command=write_key_cmd,
         description=f"Adding pubkey to {hostname} authorized_keys"
     )   
-    # write_key_cmd = f"""
-    #     mkdir -p ~/.ssh &&
-    #     chmod 700 ~/.ssh &&
-
-    #     if [ ! -f ~/.ssh/id_rsa ]; then
-    #         ssh-keygen -t rsa -f ~/.ssh/id_rsa -N ""
-    #     fi &&
-
-    #     cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys &&
-    #     echo '{PUBKEY}' >> ~/.ssh/authorized_keys &&
-    #     chmod 600 ~/.ssh/authorized_keys
-    #     """.strip()
-
-    # 
 
 
 def set_hostname_via_ssh(public_ip: str, hostname: str):
@@ -273,6 +268,21 @@ cat /etc/hosts
             print(f"[{public_ip}] Failed with exit status {exit_status}.")
             return False
         
+
+        set_known_host_cmd = """
+for i in $(seq 2 {n}); do
+    ssh-keyscan -H slave$i >> ~/.ssh/known_hosts
+done
+""".format(n=NUMBER_OF_INSTANCES_TO_LAUNCH)
+        execute_ssh_command(
+            hostname=public_ip,
+            username=SSH_USER,
+            key_path=PEM_PATH,
+            command=set_known_host_cmd,
+            description=f"Adding slave host to known_hosts_list"
+        )
+            
+
         for i in range(NUMBER_OF_INSTANCES_TO_LAUNCH):
             hostname = ""
             if(i == 0):
