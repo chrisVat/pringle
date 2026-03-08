@@ -28,6 +28,10 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
+# ============================================================
+# toggles
+# ============================================================
+SHOW_BOX_LABELS = False  # set to False to hide machine/worker text labels
 
 # ============================================================
 # build a fake graph: directed comm[src][dst] = weight
@@ -184,7 +188,7 @@ def make_topology_only_comm_from_undirected(und_adj):
 # ============================================================
 # random baseline
 # ============================================================
-def random_capacity_partition(n, num_machines, nodes_per_machine, nodes_per_worker, seed=0):
+def random_capacity_partition(n, num_machines, nodes_per_machine, workers_per_machine, seed=0):
     rng = random.Random(seed)
 
     if num_machines * nodes_per_machine < n:
@@ -212,16 +216,8 @@ def random_capacity_partition(n, num_machines, nodes_per_machine, nodes_per_work
         if not bucket:
             continue
 
-        num_workers = max(1, int(math.ceil(len(bucket) / float(nodes_per_worker))))
         for i, u in enumerate(bucket):
-            w = i // nodes_per_worker
-            worker_of[u] = min(w, num_workers - 1)
-
-        counts = defaultdict(int)
-        for u in bucket:
-            counts[worker_of[u]] += 1
-        if any(c > nodes_per_worker for c in counts.values()):
-            raise RuntimeError("Random baseline violated worker cap (should not happen).")
+            worker_of[u] = i % workers_per_machine
 
     return machine_of, worker_of
 
@@ -516,7 +512,8 @@ def draw_machine_boxes(ax, m_rects):
     for m, (x0, y0, W, H) in m_rects.items():
         rect = patches.Rectangle((x0, y0), W, H, fill=False, linewidth=2)
         ax.add_patch(rect)
-        ax.text(x0 + 0.15, y0 + H - 0.35, f"m{m}", fontsize=10)
+        if SHOW_BOX_LABELS:
+            ax.text(x0 + 0.15, y0 + H - 0.35, f"m{m}", fontsize=10)
 
 
 def draw_worker_boxes(ax, worker_rects_by_m):
@@ -524,7 +521,8 @@ def draw_worker_boxes(ax, worker_rects_by_m):
         for w, (x0, y0, W, H) in rects.items():
             rect = patches.Rectangle((x0, y0), W, H, fill=False, linewidth=1)
             ax.add_patch(rect)
-            ax.text(x0 + 0.05, y0 + H - 0.28, f"w{w}", fontsize=8)
+            if SHOW_BOX_LABELS:
+                ax.text(x0 + 0.05, y0 + H - 0.28, f"w{w}", fontsize=8)
 
 
 def set_bounds(ax, pos, pad=0.8):
@@ -714,23 +712,19 @@ def run_pregglenator_oneshot(pregglenator_oneshot_path, comm_json_path, out_path
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
-        "--nodes_per_machine", str(args.nodes_per_machine),
-        "--nodes_per_worker", str(args.nodes_per_worker),
+        "--num_workers", str(args.workers_per_machine),
         "--alpha", str(args.alpha),
         "--beta", str(args.beta),
-        "--max_refine_passes", str(args.max_refine_passes),
         "--seed", str(args.seed),
     ]
     return _run_script_autofilter(pregglenator_oneshot_path, comm_json_path, out_path, cmd_args, banner="pregglenator (one-shot)")
 
 
 def run_pregglenator_reduce_max(pregglenator_path, comm_json_path, out_path, args, banner="pregglenator (reduce-max output)"):
-    # Only pass the core args that gamer_mode help shows it accepts.
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
-        "--nodes_per_machine", str(args.nodes_per_machine),
-        "--nodes_per_worker", str(args.nodes_per_worker),
+        "--num_workers", str(args.workers_per_machine),
         "--seed", str(args.seed),
         "--refine_machine_iters", str(args.refine_machine_iters),
         "--refine_worker_iters", str(args.refine_worker_iters),
@@ -739,13 +733,10 @@ def run_pregglenator_reduce_max(pregglenator_path, comm_json_path, out_path, arg
 
 
 def run_pregglenator_reduce_max_strict(pregglenator_strict_path, comm_json_path, out_path, args):
-    # Your strict script might take workers_per_machine; if not, autofilter drops it.
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
-        "--nodes_per_machine", str(args.nodes_per_machine),
         "--workers_per_machine", str(args.workers_per_machine),
-        "--nodes_per_worker", str(args.nodes_per_worker),
         "--seed", str(args.seed),
         "--refine_machine_iters", str(args.refine_machine_iters),
         "--refine_worker_iters", str(args.refine_worker_iters),
@@ -763,11 +754,10 @@ def run_pregglenator_loose(pregglenator_loose_path, comm_json_path, out_path, ar
     cmd_args = [
         "--num_nodes", str(args.n),
         "--num_machines", str(args.num_machines),
-        "--nodes_per_machine", str(args.nodes_per_machine),
-        "--nodes_per_worker", str(args.nodes_per_worker),
+        "--num_workers", str(args.workers_per_machine),
+        "--workers_per_machine", str(args.workers_per_machine),
         "--seed", str(args.seed),
         "--worker_size_tol", str(args.worker_size_tol),
-        "--workers_per_machine", str(args.workers_per_machine),
     ]
     return _run_script_autofilter(
         pregglenator_loose_path,
@@ -888,7 +878,7 @@ def main():
         n=n,
         num_machines=args.num_machines,
         nodes_per_machine=args.nodes_per_machine,
-        nodes_per_worker=args.nodes_per_worker,
+        workers_per_machine=args.workers_per_machine,
         seed=args.seed,
     )
 
