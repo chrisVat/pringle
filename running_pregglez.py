@@ -24,11 +24,11 @@ SEED = 42
 OUTPUT_DIR = "pregglenator_ready/outputs"
 
 # Toggle which variants to run
-RUN_PREGGLENATOR             = False
+RUN_PREGGLENATOR             = True
 RUN_PREGGLENATOR_LOOSE       = False
 RUN_PREGGLENATOR_ONESHOT     = False
 RUN_PREGGLENATOR_GAMER_MODE  = False
-RUN_PREGGLENATOR_GAMER_STRICT= True
+RUN_PREGGLENATOR_GAMER_STRICT= False
 RUN_METIS                    = True
 # ──────────────────────────────────────────────────────────────
 

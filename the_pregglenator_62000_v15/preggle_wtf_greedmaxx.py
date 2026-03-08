@@ -557,7 +557,7 @@ def main():
                     help="Explicit list of merged.csv trace files to load. Overrides --traces_dir/--max_traces.")
     ap.add_argument("--num_nodes", type=int, default=None,
                     help="Graph size N. Inferred if omitted.")
-    ap.add_argument("--num_machines", type=int, default=4)
+    ap.add_argument("--num_machines", type=int, default=15)
     ap.add_argument("--nodes_per_machine", type=int, default=-1)
     ap.add_argument("--workers_per_machine", type=int, default=4,
                     help="Number of workers per machine. If set, overrides nodes_per_worker.")
