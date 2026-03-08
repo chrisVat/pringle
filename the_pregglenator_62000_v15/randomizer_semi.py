@@ -24,7 +24,7 @@ def main():
         description="Generate a cyclic node-to-worker/machine assignment JSON."
     )
     parser.add_argument("--num_nodes",    type=int, default=168114, help="Total number of nodes")
-    parser.add_argument("--num_machines", type=int, default=4,      help="Number of machines")
+    parser.add_argument("--num_machines", type=int, default=8,      help="Number of machines")
     parser.add_argument("--num_workers",  type=int, default=4,      help="Number of workers per machine")
     parser.add_argument("--output",       type=str, default="semi_random.json", help="Output file path")
     args = parser.parse_args()

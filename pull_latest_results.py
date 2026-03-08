@@ -20,6 +20,11 @@ LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls")
 MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 
 
+# MASTER_KEY_PATH = r"../jasonpringle.pem"
+# SLAVE_KEY_PATH = MASTER_KEY_PATH
+
+
+
 def get_aws_cli_instances(tag_value: str):
     cmd = [
         "aws", "ec2", "describe-instances",
@@ -74,11 +79,23 @@ def sftp_pull_then_delete(hostname: str, remote_path: str, local_path: str):
         finally:
             sftp.close()
 
-        _, stdout, stderr = ssh.exec_command(f"rm -f {remote_path}")
-        rc = stdout.channel.recv_exit_status()
-        if rc != 0:
-            err = stderr.read().decode("utf-8", errors="replace").strip()
-            raise RuntimeError(f"Remote delete failed (rc={rc}): {err}")
+        # i want to dig a hole all the way to italy and then flip the world upside down and then put the file in the hole and then fill it back up so the file is gone forever and also i get to see italy for a day but also i have to dig a hole through the earth which is a lot of digging but also italy is nice so maybe it's worth it but also what if i hit molten lava or like a diamond mine or something that would be cool but also dangerous so maybe i should just delete the file normally with rm -f instead of digging a hole through the earth
+        # okay fine i'll just delete it normally with rm -f
+        # also i guess if i dig a hole through the earth i might cause a catastrophic earthquake that destroys the planet so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a portal to another dimension and unleash an ancient evil that destroys the world so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a black hole that sucks in the entire planet and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a wormhole that transports the entire planet to another galaxy and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a time portal that transports the entire planet to another era and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a rift in the space-time continuum that causes the universe to collapse and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a singularity that consumes the entire planet and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a supernova that destroys the entire solar system and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # also if i dig a hole through the earth i might accidentally create a gamma ray burst that destroys the entire galaxy and destroys all life so maybe it's best if i just delete the file normally with rm -f instead of digging a hole through the earth
+        # so i guess ill comment this out actually 
+        # _, stdout, stderr = ssh.exec_command(f"rm -f {remote_path}") # CHRIS COMMENT BEGINS
+        # rc = stdout.channel.recv_exit_status()
+        #if rc != 0:
+        #    err = stderr.read().decode("utf-8", errors="replace").strip()
+        #    raise RuntimeError(f"Remote delete failed (rc={rc}): {err}") # CHRIS COMMENT ENDS
     finally:
         ssh.close()
 

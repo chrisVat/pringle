@@ -508,6 +508,7 @@ public:
             }
         }
 
+        /*
         if (_my_rank == MASTER_RANK) {
             char timing_file[256];
             sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
@@ -524,7 +525,7 @@ public:
             }
             fclose(tf);
 
-            /*
+            
             char hdfs_mkdir[512];
             sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
             system(hdfs_mkdir);
@@ -532,8 +533,8 @@ public:
             sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
             system(hdfs_put);
             remove(timing_file);
-            */ // CHRISCOMMENT
-        }
+            
+        }*/ // CHRISCOMMENT
 
         vector<int> my_row(_num_workers);
         /*
@@ -837,6 +838,7 @@ public:
             }
         }
 
+        /*
         // Master writes CSV with columns: source, superstep, worker, start_time, end_time, duration, active_vertices
         if (_my_rank == MASTER_RANK) {
             char timing_file[256];
@@ -866,6 +868,7 @@ public:
             system(hdfs_put);
             remove(timing_file);
         }
+        */ // CHRIS
 
         // Every worker sends its row, master collects and prints
         vector<int> my_row(_num_workers);
@@ -984,6 +987,7 @@ public:
         fclose(f);
         */ // CHRISCOMMENT
 
+        /*
         // make dir and write to hdfs 
         worker_barrier();
         if (_my_rank == MASTER_RANK) {
@@ -992,6 +996,7 @@ public:
             system(mkdir_cmd);
         }
         worker_barrier();
+        */ // CHRISCOMMENT
 
         /*
         char hdfs_cmd[512];
