@@ -3,10 +3,11 @@ import time
 import socket
 import paramiko
 from botocore.exceptions import ClientError
+import subprocess
 
 # =========================
 # CONFIG
-# for Master's ~/hosts file, need to manually add entries for all slaves and master itself
+# For Master's ~/hosts file, need to manually add entries for all slaves and master itself
 # =========================
 AWS_PROFILE = "pregel"
 REGION = "us-east-2"
@@ -26,8 +27,10 @@ SSH_USER = "ubuntu"
 IP_HOSTNAME_TXT_FILE = "instance_ip_hostname.txt"
 MASTER_PUBLIC_IP = "3.135.195.197"
 
-NUMBER_OF_INSTANCES_ALREADY = 1
-NUMBER_OF_INSTANCES_TO_LAUNCH = 1
+NUMBER_OF_INSTANCES_ALREADY = 5 # number of slaves u have rn
+NUMBER_OF_INSTANCES_TO_LAUNCH = 6 # total number of slaves
+NUMBER_OF_WORKER_PER_INSTANCE = 4 # number of workers to run on each slave (based on number of cores, leave some room for OS)
+
 
 def build_user_data(hostname: str) -> str:
     """
@@ -163,8 +166,25 @@ def set_hostname_via_ssh(public_ip: str, hostname: str):
         command=cmd,
         description=f"Setting hostname to {hostname}"
     )
+def set_hosts_file_via_ssh(public_ip: str):
+    with open("./hosts.txt", "w") as f:
+        f.write(f"master slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+        for i in range(1, NUMBER_OF_INSTANCES_TO_LAUNCH + 1):
+            if(i==1):
+                f.write(f"slave slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+            else:
+                f.write(f"slave{i} slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+    scp_cmd = [
+        "scp",
+        "-o", "StrictHostKeyChecking=no",
+        "-i", PEM_PATH,
+        "./hosts.txt",
+        f"{SSH_USER}@{public_ip}:~/hosts"
+    ]
 
-def set_hosts_file_via_ssh(public_ip: str, local_hosts_file: str):
+    subprocess.run(scp_cmd, check=True)
+
+def set_etc_hosts_file_via_ssh(public_ip: str, local_hosts_file: str):
     """
     Upload a local hosts txt file to the remote machine, then insert its
     content into /etc/hosts right before the IPv6 section without overwriting
@@ -274,7 +294,7 @@ def append_ip_hostname_record_txt(privatepath: str, instance_info: dict, hostnam
 def launch_instance():
     session = boto3.Session(profile_name=AWS_PROFILE, region_name=REGION)
     ec2 = session.client("ec2")
-    for i in range(NUMBER_OF_INSTANCES_ALREADY+1, NUMBER_OF_INSTANCES_TO_LAUNCH):
+    for i in range(NUMBER_OF_INSTANCES_ALREADY+1, NUMBER_OF_INSTANCES_TO_LAUNCH+1):
         hostname = HOSTNAME + str(i)
         instance_name_tag = INSTANCE_NAME_TAG + str(i)
         user_data = build_user_data(hostname)
@@ -330,8 +350,8 @@ def launch_instance():
 
         append_ip_hostname_record_txt(IP_HOSTNAME_TXT_FILE, info, hostname)
     
-    set_hosts_file_via_ssh(MASTER_PUBLIC_IP, IP_HOSTNAME_TXT_FILE)
-
+    set_etc_hosts_file_via_ssh(MASTER_PUBLIC_IP, IP_HOSTNAME_TXT_FILE)
+    set_hosts_file_via_ssh(MASTER_PUBLIC_IP)
     return info
 
 
