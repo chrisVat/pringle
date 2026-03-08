@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PARTITION_DIR="/home/ubuntu/pringle/sssp/15"
+PARTITION_DIR="/home/ubuntu/pringle/sssp/4"
 
 if [ ! -d "$PARTITION_DIR" ]; then
     echo "Error: partition folder does not exist: $PARTITION_DIR"
