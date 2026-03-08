@@ -27,8 +27,8 @@ SSH_USER = "ubuntu"
 IP_HOSTNAME_TXT_FILE = "instance_ip_hostname.txt"
 MASTER_PUBLIC_IP = "3.135.195.197"
 
-NUMBER_OF_INSTANCES_ALREADY = 5 # number of slaves u have rn
-NUMBER_OF_INSTANCES_TO_LAUNCH = 6 # total number of slaves
+NUMBER_OF_INSTANCES_ALREADY = 3 # number of slaves u have rn
+NUMBER_OF_INSTANCES_TO_LAUNCH = 4 # total number of slaves
 NUMBER_OF_WORKER_PER_INSTANCE = 4 # number of workers to run on each slave (based on number of cores, leave some room for OS)
 
 
@@ -171,9 +171,16 @@ def set_hosts_file_via_ssh(public_ip: str):
         f.write(f"master slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
         for i in range(1, NUMBER_OF_INSTANCES_TO_LAUNCH + 1):
             if(i==1):
-                f.write(f"slave slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+                f.write(f"{HOSTNAME} slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
             else:
-                f.write(f"slave{i} slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+                f.write(f"{HOSTNAME}{i} slots={NUMBER_OF_WORKER_PER_INSTANCE}\n")
+    with open("./slaves.txt", "w") as f:
+        f.write(f"master\n")
+        for i in range(1, NUMBER_OF_INSTANCES_TO_LAUNCH + 1):
+            if(i==1):
+                f.write(f"{HOSTNAME}\n")
+            else:
+                f.write(f"{HOSTNAME}{i}\n")
     scp_cmd = [
         "scp",
         "-o", "StrictHostKeyChecking=no",
@@ -183,6 +190,16 @@ def set_hosts_file_via_ssh(public_ip: str):
     ]
 
     subprocess.run(scp_cmd, check=True)
+    scp2_cmd = [
+        "scp",
+        "-o", "StrictHostKeyChecking=no",
+        "-i", PEM_PATH,
+        "./slaves.txt",
+        f"{SSH_USER}@{public_ip}:/usr/local/hadoop/etc/hadoop/slaves"
+    ]
+
+    subprocess.run(scp2_cmd, check=True)
+
 
 def set_etc_hosts_file_via_ssh(public_ip: str, local_hosts_file: str):
     """
@@ -294,6 +311,8 @@ def append_ip_hostname_record_txt(privatepath: str, instance_info: dict, hostnam
 def launch_instance():
     session = boto3.Session(profile_name=AWS_PROFILE, region_name=REGION)
     ec2 = session.client("ec2")
+    with open(IP_HOSTNAME_TXT_FILE, "w"):
+        pass
     for i in range(NUMBER_OF_INSTANCES_ALREADY+1, NUMBER_OF_INSTANCES_TO_LAUNCH+1):
         hostname = HOSTNAME + str(i)
         instance_name_tag = INSTANCE_NAME_TAG + str(i)
