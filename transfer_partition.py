@@ -17,8 +17,14 @@ from transforming_scripts.global_ranking_json_mine import convert_ranking
 USER = "ubuntu"
 REGION = "us-east-2"
 
-MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
-SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
+#MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+#SLAVE_KEY_PATH  = r"C:\Users\chris\.ssh\pregel_slave.pem"
+
+MASTER_KEY_PATH = r"../jasonpringle.pem"
+SLAVE_KEY_PATH = MASTER_KEY_PATH
+
+
+AWS_PROFILE = "pregel"
 
 DEFAULT_JSON     = "the_pregglenator_62000_v15/pregglenator_compute_only.json"
 DEFAULT_JSON     = "pregglenator_ready/outputs/pregglenator.json"
@@ -34,7 +40,7 @@ def get_aws_cli_instances(tag_value):
     cmd = [
         "aws", "ec2", "describe-instances",
         "--region", REGION,
-        "--profile", "pregel",
+        "--profile", AWS_PROFILE,
         "--filters",
         f"Name=tag:Name,Values={tag_value}",
         "Name=instance-state-name,Values=running",

@@ -20,6 +20,11 @@ LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls")
 MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 
 
+MASTER_KEY_PATH = r"../jasonpringle.pem"
+SLAVE_KEY_PATH = MASTER_KEY_PATH
+
+
+
 def get_aws_cli_instances(tag_value: str):
     cmd = [
         "aws", "ec2", "describe-instances",

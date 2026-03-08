@@ -25,8 +25,14 @@ REGION = "us-east-2"
 #MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
 #SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
-MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
-SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
+#MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+#SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
+
+MASTER_KEY_PATH = r"../jasonpringle.pem"
+SLAVE_KEY_PATH = MASTER_KEY_PATH
+
+AWS_PROFILE = "pregel"
+
 
 # Set to True to pull a git branch and recompile on master + all slaves before starting.
 SYNC_AND_RECOMPILE = True
@@ -60,7 +66,7 @@ def get_aws_cli_instances(tag_value):
     cmd = [
         "aws", "ec2", "describe-instances",
         "--region", REGION,
-        "--profile", "pregel",  # Using your specific AWS profile
+        "--profile", AWS_PROFILE,  # Using your specific AWS profile
         "--filters", 
         f"Name=tag:Name,Values={tag_value}", 
         "Name=instance-state-name,Values=running",
