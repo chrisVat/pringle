@@ -609,23 +609,23 @@ def main():
     ap.add_argument("--trace_paths", nargs="+", default=None,
                     help="Explicit list of merged.csv trace files to load. Overrides --traces_dir/--max_traces.")
     ap.add_argument("--num_nodes", type=int, default=None,
-                    help="Graph size N. Inferred if omitted.")
-    ap.add_argument("--num_machines", type=int, default=4)
+                    help="Graph size N. Inferred if omitted.") 
+    ap.add_argument("--num_machines", type=int, default=4) # HERE!!!!
     ap.add_argument("--nodes_per_machine", type=int, default=-1)
-    ap.add_argument("--workers_per_machine", type=int, default=15,
+    ap.add_argument("--workers_per_machine", type=int, default=4,
                     help="Number of workers per machine. If set, overrides nodes_per_worker.")
     ap.add_argument("--nodes_per_worker", type=int, default=-1)
 
-    ap.add_argument("--max_traces", type=int, default=6,
+    ap.add_argument("--max_traces", type=int, default=-1,
                     help="Maximum number of trace files to load when using --traces_dir. Loads all if <=0.")
 
     ap.add_argument("--c_node", type=float, default=1.37e-07,
                     help="Cost weight for compute bottleneck based on raw recv load")
 
-    ap.add_argument("--joint_refine_passes", type=int, default=2,
+    ap.add_argument("--joint_refine_passes", type=int, default=4,
                     help="Number of greedy local-refinement passes after joint worker assignment")
 
-    ap.add_argument("--output", default="pregglenator_joint_4m.json",
+    ap.add_argument("--output", default="pregglenator_joint2_bigguy_fulltrain_4m.json",
                     help="Output JSON path")
 
     args = ap.parse_args()

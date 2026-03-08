@@ -21,7 +21,7 @@ NUM_WORKERS         = 4    # workers per machine (used by all variants)
 
 SEED = 42
 
-OUTPUT_DIR = "pregglenator_ready/outputs"
+OUTPUT_DIR = "pregglenator_ready/outputs_8"
 
 # Toggle which variants to run
 RUN_PREGGLENATOR             = True

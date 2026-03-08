@@ -6,8 +6,8 @@ import traceback
 from transforming_scripts.global_ranking_json_mine import convert_ranking
 
 
-INPUT_FOLDER = "full_partition_jsons/partitions15/"
-OUTPUT_FOLDER = "sssp/15/"
+INPUT_FOLDER = "full_partition_jsons/partitions4/"
+OUTPUT_FOLDER = "sssp/4/"
 OVERWRITE = False
 
 
