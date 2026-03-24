@@ -883,12 +883,14 @@ public:
                 for (int i = 0; i < _num_workers; i++)
                     _worker_comm_matrix[w][i] = row[i];
             }
+            /*
             cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
             for (int i = 0; i < _num_workers; i++) {
                 for (int j = 0; j < _num_workers; j++)
                     cout << setw(10) << _worker_comm_matrix[i][j];
                 cout << endl;
             }
+            */
 
             for (int i = 0; i < _num_workers; i++) {
                 for (int j = 0; j < _num_workers; j++) {
