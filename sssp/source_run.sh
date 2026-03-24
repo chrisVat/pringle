@@ -8,7 +8,7 @@ NODES="/home/ubuntu/pringle/train_test/64_seed0_train.txt"
 rm -f /tmp/pringle_query_pipe /tmp/pringle_done
 
 # Launch setup in background: loads + partitions graph once, then waits
-mpiexec.openmpi -n 16 --oversubscribe --hostfile ~/hosts \
+mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
   -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
   ./run setup $INPUT $OUTPUT $PARTITION $PARTITION_FILE \
   < /dev/null &
