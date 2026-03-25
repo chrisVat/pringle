@@ -1,14 +1,14 @@
 PARTITION="custom"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/4/semi_random_4m.txt"
+PARTITION_FILE="/home/ubuntu/pringle/sssp/new_safia_15/BASED_15m_4w_5src.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
-NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
+NODES="/home/ubuntu/pringle/train_test/small_train.txt"
 
 # Clean up any stale state from a previous run
 rm -f /tmp/pringle_query_pipe /tmp/pringle_done
 
 # Launch setup in background: loads + partitions graph once, then waits
-mpiexec.openmpi -n 16 --oversubscribe --hostfile ~/hosts \
+mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
   -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
   ./run setup $INPUT $OUTPUT $PARTITION $PARTITION_FILE \
   < /dev/null &
