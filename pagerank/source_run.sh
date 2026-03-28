@@ -8,11 +8,11 @@ OUTPUT="/outputLargeTwitchFolder"
 START=$(date +%s%N)
 
 if [ "$PARTITION" = "custom" ]; then
-  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
+  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
     -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
     ./run "$INPUT" "$OUTPUT" "$PARTITION" "$PARTITION_FILE"
 else
-  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
+  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
     -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
     ./run "$INPUT" "$OUTPUT" "$PARTITION"
 fi
