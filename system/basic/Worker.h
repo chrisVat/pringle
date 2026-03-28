@@ -1091,6 +1091,7 @@ public:
             // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
             // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
             // If ratio ≈ 0.25 (for 4 machines) Only 25% of cross-worker traffic crosses machines.
+            double ratio = 0.0;
             if (_my_rank == MASTER_RANK) {
                 if (total_cross_worker > 0)
                     ratio = (double)total_cross_machine / total_cross_worker;
