@@ -698,10 +698,15 @@ public:
                 system(mkdir_cmd);
             }
             worker_barrier();
+            
+            printf("[rank %d] uploading vertex comm file\n", _my_rank);
+            fflush(stdout);
 
             char hdfs_cmd[512];
-            sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/ 2>/dev/null", filename);
-            system(hdfs_cmd);
+            sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/", filename);
+            int rc = system(hdfs_cmd);
+            printf("[rank %d] hdfs put rc=%d\n", _my_rank, rc);
+            fflush(stdout);
             remove(filename);
             // CHRISCOMMENT
 
@@ -1152,9 +1157,14 @@ public:
                 }
                 worker_barrier();
 
+                printf("[rank %d] uploading vertex comm file\n", _my_rank);
+                fflush(stdout);
+
                 char hdfs_cmd[512];
-                sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/ 2>/dev/null", filename);
-                system(hdfs_cmd);
+                sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/", filename);
+                int rc = system(hdfs_cmd);
+                printf("[rank %d] hdfs put rc=%d\n", _my_rank, rc);
+                fflush(stdout);
                 remove(filename);
                 // CHRISCOMMENT
 
