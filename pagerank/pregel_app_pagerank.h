@@ -129,7 +129,7 @@ void pregel_pagerank(string in_path, string out_path, bool use_combiner, bool sa
 	param.force_write=true;
 	param.native_dispatcher=false;
 	param.uses_source_id = false; 
-	param.source_id = -1
+	param.source_id = -1;
 	param.save_comm_traces = save_comm_traces;
 
 	PRWorker_pregel worker;
