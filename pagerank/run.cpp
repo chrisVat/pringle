@@ -1,5 +1,5 @@
 #include "pregel_app_pagerank.h"
-#include "../utils/global.h"
+#include "../system/utils/global.h"
 #include <string>
 #include <cstdio>
 

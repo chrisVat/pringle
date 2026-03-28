@@ -36,6 +36,7 @@ SYNC_AND_RECOMPILE = True
 GIT_BRANCH = "eval_comm_new"          # branch to checkout on all nodes
 PRINGLE_DIR = "/home/ubuntu/pringle"
 SSSP_DIR    = "/home/ubuntu/pringle/sssp"
+PAGERANK_DIR    = "/home/ubuntu/pringle/pagerank"
 
 # --- COMMANDS ---
 # No more ENV_VARS needed here, we are relying on .bashrc!
@@ -134,7 +135,7 @@ def execute_ssh_command(hostname, commands, description, key_path):
 
 SYNC_CMDS = f"""
 cd {PRINGLE_DIR} && git reset --hard HEAD~ && git fetch && git checkout {GIT_BRANCH} && git pull
-cd {SSSP_DIR} && make clean && make
+cd {PAGERANK_DIR} && make clean && make
 """
 
 def main():
