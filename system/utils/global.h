@@ -22,12 +22,6 @@ using namespace std;
 inline int _my_rank;
 inline int _num_workers = 1;
 
-// inline map<pair<int,int>, int> _vertex_comm_map;  // {(src, dst) -> count}
-
-// inline unordered_map<int, unordered_map<int, int>> _vertex_comm_map;
-// // usage: _vertex_comm_map[src_vertex][dst_vertex] += count
-// // dict[node] -> {paired_node: count}
-
 // [superstep][src_vertex][dst_vertex] = count
 inline unordered_map<int, unordered_map<int, unordered_map<int, int>>> _vertex_comm_map;
 
@@ -40,6 +34,8 @@ inline unordered_map<int, int> _rank_to_machine;  // rank -> machine id
 
 inline long long _cross_machine_msg_num = 0;
 inline vector<vector<int>> _machine_comm_matrix;
+
+inline bool g_save_comm_traces = false;
 
 // Per-superstep, per-worker timing and activity tracking
 // _worker_step_start[superstep][worker] = start time
@@ -147,6 +143,8 @@ struct WorkerParams {
     bool force_write;
     bool native_dispatcher; //true if input is the output of a previous blogel job
     int source_id; // for SSSP specifically - passed to Worker for metrics reporting
+    bool uses_source_id; // whether this job uses source_id (e.g. SSSP) or not (e.g. PageRank)
+    bool save_comm_traces; // whether to save communication traces for this job
 
     WorkerParams()
     {

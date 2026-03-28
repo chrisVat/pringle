@@ -451,7 +451,11 @@ public:
         worker_barrier();
         double _run_end = MPI_Wtime();
         if (_my_rank == MASTER_RANK) {
-            printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
+            if (params.uses_source_id) {
+                printf("Query time (src=%d): %.3f seconds\n", params.source_id, _run_end - _run_start);
+            } else {
+                printf("PageRank run time: %.3f seconds\n", _run_end - _run_start);
+            }
 
             // derive label from partition file basename (no extension), or "default"
             std::string _part_label = "default";
@@ -466,14 +470,28 @@ public:
             bool need_header = (access(out_csv, F_OK) != 0);
             FILE* qf = fopen(out_csv, "a");
             if (qf) {
-                if (need_header)
-                    fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
-                fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
-                        params.source_id,
+                if (need_header) {
+                    if (params.uses_source_id) {
+                        fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
+                    } else {
+                        fprintf(qf, "query_seconds,supersteps,total_msgs,total_vadd\n");
+                    }
+                }
+                
+                if (params.uses_source_id) {
+                    fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
+                            params.source_id,
+                            (_run_end - _run_start),
+                            global_step_num,
+                            global_msg_num,
+                            global_vadd_num);
+                } else {
+                    fprintf(qf, "%.6f,%d,%lld,%lld\n",
                         (_run_end - _run_start),
                         global_step_num,
                         global_msg_num,
                         global_vadd_num);
+                }
                 fclose(qf);
             } else {
                 perror("fopen /tmp/query_times.csv");
@@ -493,12 +511,15 @@ public:
             double local_start  = _worker_step_start[s][_my_rank];
             double local_end    = _worker_step_end[s][_my_rank];
             int    local_active = _worker_step_active[s][_my_rank];
+
             vector<double> all_starts(_num_workers);
             vector<double> all_ends(_num_workers);
             vector<int>    all_actives(_num_workers);
+
             MPI_Gather(&local_start,  1, MPI_DOUBLE, all_starts.data(),  1, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
             MPI_Gather(&local_end,    1, MPI_DOUBLE, all_ends.data(),    1, MPI_DOUBLE, MASTER_RANK, MPI_COMM_WORLD);
             MPI_Gather(&local_active, 1, MPI_INT,    all_actives.data(), 1, MPI_INT,    MASTER_RANK, MPI_COMM_WORLD);
+            
             if (_my_rank == MASTER_RANK) {
                 for (int w = 0; w < _num_workers; w++) {
                     _worker_step_start[s][w]  = all_starts[w];
@@ -510,26 +531,48 @@ public:
 
         if (_my_rank == MASTER_RANK) {
             char timing_file[256];
-            sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
-            FILE* tf = fopen(timing_file, "w");
-            fprintf(tf, "source,superstep,worker,start_time,end_time,duration,active_vertices\n");
-            for (int s = 1; s <= total_steps; s++) {
-                for (int w = 0; w < _num_workers; w++) {
-                    double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
-                    fprintf(tf, "%d,%d,%d,%.6f,%.6f,%.6f,%d\n",
-                        params.source_id, s, w,
-                        _worker_step_start[s][w], _worker_step_end[s][w],
-                        duration, _worker_step_active[s][w]);
+            if (params.uses_source_id) {
+                sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
+                FILE* tf = fopen(timing_file, "w");
+                fprintf(tf, "source,superstep,worker,start_time,end_time,duration,active_vertices\n");
+                for (int s = 1; s <= total_steps; s++) {
+                    for (int w = 0; w < _num_workers; w++) {
+                        double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
+                        fprintf(tf, "%d,%d,%d,%.6f,%.6f,%.6f,%d\n",
+                            params.source_id, s, w,
+                            _worker_step_start[s][w], _worker_step_end[s][w],
+                            duration, _worker_step_active[s][w]);
+                    }
                 }
+                fclose(tf);
+            } else {
+                sprintf(timing_file, "worker_timing_pagerank.csv");
+                FILE* tf = fopen(timing_file, "w");
+                fprintf(tf, "superstep,worker,start_time,end_time,duration,active_vertices\n");
+                for (int s = 1; s <= total_steps; s++) {
+                    for (int w = 0; w < _num_workers; w++) {
+                        double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
+                        fprintf(tf, "%d,%d,%.6f,%.6f,%.6f,%d\n",
+                            s, w,
+                            _worker_step_start[s][w], _worker_step_end[s][w],
+                            duration, _worker_step_active[s][w]);
+                    }
+                }
+                fclose(tf);
             }
-            fclose(tf);
 
-            
             char hdfs_mkdir[512];
-            sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
-            system(hdfs_mkdir);
             char hdfs_put[512];
-            sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
+
+            if (params.uses_source_id) {
+                sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
+                sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
+            } else {
+                sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/pagerank/");
+                sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/", timing_file);
+            }
+
+            system(hdfs_mkdir);
             system(hdfs_put);
             remove(timing_file);
             // CHRISCOMMENT
@@ -573,11 +616,14 @@ public:
         for (int i = 0; i < num_machines; i++)
             for (int j = 0; j < num_machines; j++)
                 flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
-        MPI_Reduce(flat_local.data(), flat_global.data(), num_machines * num_machines,
-                   MPI_INT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+        MPI_Reduce(
+            flat_local.data(), 
+            flat_global.data(), 
+            num_machines * num_machines,
+            MPI_INT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD
+        );
         // CHRISCOMMENT
         
-                   
         if (_my_rank == MASTER_RANK) {
             for (int i = 0; i < num_machines; i++)
                 for (int j = 0; j < num_machines; j++)
@@ -592,55 +638,94 @@ public:
                 for (int j = 0; j < num_machines; j++)
                     if (i != j) total_cross_machine += _machine_comm_matrix[i][j];
             cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
-            cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
+            double ratio = 0.0;
+            if (total_cross_worker > 0)
+                ratio = (double)total_cross_machine / total_cross_worker;
+            cout << "Cross-Machine Ratio: " << ratio << endl;
         }
         // CHRISCOMMENT
 
-        
-        int start_node = params.source_id;
-        char filename[256];
-        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
-        FILE* f = fopen(filename, "w");
-        if (_my_rank == 0)
-            fprintf(f, "source,superstep,src_vertex,dst_vertex,count\n");
-        for (auto& [superstep, src_map] : _vertex_comm_map)
-            for (auto& [src_vertex, dst_map] : src_map)
-                for (auto& [dst_vertex, count] : dst_map)
-                    fprintf(f, "%d,%d,%d,%d,%d\n", start_node, superstep, src_vertex, dst_vertex, count);
-        fclose(f);
+        if (params.uses_source_id) {
+            int start_node = params.source_id;
+            char filename[256];
+            sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
+            FILE* f = fopen(filename, "w");
+            if (_my_rank == 0)
+                fprintf(f, "source,superstep,src_vertex,dst_vertex,count\n");
+            for (auto& [superstep, src_map] : _vertex_comm_map)
+                for (auto& [src_vertex, dst_map] : src_map)
+                    for (auto& [dst_vertex, count] : dst_map)
+                        fprintf(f, "%d,%d,%d,%d,%d\n", start_node, superstep, src_vertex, dst_vertex, count);
+            fclose(f);
 
-        worker_barrier();
-        if (_my_rank == MASTER_RANK) {
-            char mkdir_cmd[512];
-            sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
-            system(mkdir_cmd);
+            worker_barrier();
+            if (_my_rank == MASTER_RANK) {
+                char mkdir_cmd[512];
+                sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
+                system(mkdir_cmd);
+            }
+            worker_barrier();
+
+            char hdfs_cmd[512];
+            sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
+            system(hdfs_cmd);
+            remove(filename);
+            // CHRISCOMMENT
+
+            if (_my_rank == MASTER_RANK) {
+                write_metrics(params, global_step_num, global_msg_num,
+                    get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
+                    get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
+                    total_cross_worker, total_cross_machine);
+            }
+            // CHRISCOMMENT
+        } else {
+            char filename[256];
+            sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
+            FILE* f = fopen(filename, "w");
+            if (_my_rank == 0)
+                fprintf(f, "superstep,src_vertex,dst_vertex,count\n");
+            for (auto& [superstep, src_map] : _vertex_comm_map)
+                for (auto& [src_vertex, dst_map] : src_map)
+                    for (auto& [dst_vertex, count] : dst_map)
+                        fprintf(f, "%d,%d,%d,%d\n", superstep, src_vertex, dst_vertex, count);
+            fclose(f);
+
+            worker_barrier();
+            if (_my_rank == MASTER_RANK) {
+                char mkdir_cmd[512];
+                sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/pagerank/staging/");
+                system(mkdir_cmd);
+            }
+            worker_barrier();
+
+            char hdfs_cmd[512];
+            sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/ 2>/dev/null", filename);
+            system(hdfs_cmd);
+            remove(filename);
+            // CHRISCOMMENT
+
+            if (_my_rank == MASTER_RANK) {
+                write_metrics(params, global_step_num, global_msg_num,
+                    get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
+                    get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
+                    total_cross_worker, total_cross_machine);
+            }
+            // CHRISCOMMENT
         }
-        worker_barrier();
-
-        char hdfs_cmd[512];
-        sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
-        system(hdfs_cmd);
-        remove(filename);
-        // CHRISCOMMENT
-
-
-        
-        if (_my_rank == MASTER_RANK) {
-            write_metrics(start_node, global_step_num, global_msg_num,
-                get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
-                get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
-                total_cross_worker, total_cross_machine, _my_rank);
-        }
-        // CHRISCOMMENT
 
         ResetTimer(WORKER_TIMER);
-        // dump_partition(params.output_path.c_str()); // CHRISCOMMENT
+        dump_partition(params.output_path.c_str()); // CHRISCOMMENT
         StopTimer(WORKER_TIMER);
         PrintTimer("Dump Time", WORKER_TIMER);
     }
 
     void run(const WorkerParams& params)
     {
+
+        // make trace setting visible to low-level instrumentation
+        g_save_comm_traces = params.save_comm_traces;
+
         //check path + init
         if (_my_rank == MASTER_RANK) {
             if (dirCheck(params.input_path.c_str(), params.output_path.c_str(), _my_rank == MASTER_RANK, params.force_write) == -1)
@@ -777,7 +862,7 @@ public:
             if (_my_rank == MASTER_RANK) {
                 cout << "Superstep " << global_step_num << " done. Time elapsed: " << get_timer(4) << " seconds" << endl;
                 cout << "#msgs: " << step_msg_num << ", #vadd: " << step_vadd_num << endl;
-                cout << "#cross-worker msgs: " << global_cross_worker_msg << endl;  // NEW
+                cout << "#cross-worker msgs: " << global_cross_worker_msg << endl; 
                 cout << "#cross-machine msgs: " << global_cross_machine << endl;
             }
         }
@@ -786,23 +871,45 @@ public:
         double query_s = _run_end - _run_start;
 
         if (_my_rank == MASTER_RANK) {
-            const char* out_csv = "/tmp/query_times.csv";
-            bool need_header = (access(out_csv, F_OK) != 0);
+            const char* out_csv;
+            if (params.uses_source_id) {
+                out_csv = "/tmp/query_times.csv";
+            } else {
+                out_csv = "/tmp/pagerank_times.csv";
+            }
 
+            bool need_header = (access(out_csv, F_OK) != 0);
             FILE* qf = fopen(out_csv, "a");
             if (qf) {
                 if (need_header) {
-                    fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
+                    if (params.uses_source_id) {
+                        fprintf(qf, "source,query_seconds,supersteps,total_msgs,total_vadd\n");
+                    } else {
+                        fprintf(qf, "query_seconds,supersteps,total_msgs,total_vadd\n");
+                    }
                 }
-                fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
-                        params.source_id,
+                
+                if (params.uses_source_id) {
+                    fprintf(qf, "%d,%.6f,%d,%lld,%lld\n",
+                            params.source_id,
+                            (_run_end - _run_start),
+                            global_step_num,
+                            global_msg_num,
+                            global_vadd_num);
+                } else {
+                    fprintf(qf, "%.6f,%d,%lld,%lld\n",
                         (_run_end - _run_start),
                         global_step_num,
                         global_msg_num,
                         global_vadd_num);
+                }
                 fclose(qf);
             } else {
-                perror("fopen /tmp/query_times.csv");
+                if (params.uses_source_id) {
+                    perror("fopen /tmp/query_times.csv");
+                } else {
+                    perror("fopen /tmp/pagerank_times.csv");
+                }
             }
         }
         StopTimer(WORKER_TIMER);
@@ -840,190 +947,225 @@ public:
         }
 
         // Master writes CSV with columns: source, superstep, worker, start_time, end_time, duration, active_vertices
-        if (_my_rank == MASTER_RANK) {
-            char timing_file[256];
-            sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
-            FILE* tf = fopen(timing_file, "w");
-            fprintf(tf, "source,superstep,worker,start_time,end_time,duration,active_vertices\n");
-            for (int s = 1; s <= total_steps; s++) {
-                for (int w = 0; w < _num_workers; w++) {
-                    double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
-                    fprintf(tf, "%d,%d,%d,%.6f,%.6f,%.6f,%d\n",
-                        params.source_id, s, w,
-                        _worker_step_start[s][w],
-                        _worker_step_end[s][w],
-                        duration,
-                        _worker_step_active[s][w]);
+        if (g_save_comm_traces) {
+            if (_my_rank == MASTER_RANK) {
+                char timing_file[256];
+                if (params.uses_source_id) {
+                    sprintf(timing_file, "worker_timing_src_%d.csv", params.source_id);
+                    FILE* tf = fopen(timing_file, "w");
+                    fprintf(tf, "source,superstep,worker,start_time,end_time,duration,active_vertices\n");
+                    for (int s = 1; s <= total_steps; s++) {
+                        for (int w = 0; w < _num_workers; w++) {
+                            double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
+                            fprintf(tf, "%d,%d,%d,%.6f,%.6f,%.6f,%d\n",
+                                params.source_id, s, w,
+                                _worker_step_start[s][w], _worker_step_end[s][w],
+                                duration, _worker_step_active[s][w]);
+                        }
+                    }
+                    fclose(tf);
+                } else {
+                    sprintf(timing_file, "worker_timing_pagerank.csv");
+                    FILE* tf = fopen(timing_file, "w");
+                    fprintf(tf, "superstep,worker,start_time,end_time,duration,active_vertices\n");
+                    for (int s = 1; s <= total_steps; s++) {
+                        for (int w = 0; w < _num_workers; w++) {
+                            double duration = _worker_step_end[s][w] - _worker_step_start[s][w];
+                            fprintf(tf, "%d,%d,%.6f,%.6f,%.6f,%d\n",
+                                s, w,
+                                _worker_step_start[s][w], _worker_step_end[s][w],
+                                duration, _worker_step_active[s][w]);
+                        }
+                    }
+                    fclose(tf);
                 }
+
+                char hdfs_mkdir[512];
+                char hdfs_put[512];
+
+                if (params.uses_source_id) {
+                    sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
+                    sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
+                } else {
+                    sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/pagerank/");
+                    sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/", timing_file);
+                }
+
+                system(hdfs_mkdir);
+                system(hdfs_put);
+                remove(timing_file);
             }
-            fclose(tf);
-
-            // Upload to HDFS
-            char hdfs_mkdir[512];
-            sprintf(hdfs_mkdir, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/", params.source_id);
-            system(hdfs_mkdir);
-
-            char hdfs_put[512];
-            sprintf(hdfs_put, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/", timing_file, params.source_id);
-            system(hdfs_put);
-            remove(timing_file);
         }
 
         // Every worker sends its row, master collects and prints
         vector<int> my_row(_num_workers);
-        for (int i = 0; i < _num_workers; i++)
-            my_row[i] = _worker_comm_matrix[_my_rank][i];
-
         long long total_cross_machine = 0;
         long long total_cross_worker = 0;
 
-        if (_my_rank == MASTER_RANK) {
-            for (int w = 1; w < _num_workers; w++) {
-                vector<int> row = recv_data<vector<int>>(w);
-                for (int i = 0; i < _num_workers; i++)
-                    _worker_comm_matrix[w][i] = row[i];
-            }
-            /*
-            cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
-            for (int i = 0; i < _num_workers; i++) {
-                for (int j = 0; j < _num_workers; j++)
-                    cout << setw(10) << _worker_comm_matrix[i][j];
-                cout << endl;
-            }
-            */
+        if (g_save_comm_traces) {
+            for (int i = 0; i < _num_workers; i++)
+                my_row[i] = _worker_comm_matrix[_my_rank][i];
 
-            for (int i = 0; i < _num_workers; i++) {
-                for (int j = 0; j < _num_workers; j++) {
-                    if (i != j) {
-                        total_cross_worker += _worker_comm_matrix[i][j];
+            if (_my_rank == MASTER_RANK) {
+                for (int w = 1; w < _num_workers; w++) {
+                    vector<int> row = recv_data<vector<int>>(w);
+                    for (int i = 0; i < _num_workers; i++)
+                        _worker_comm_matrix[w][i] = row[i];
+                }
+                /*
+                cout << "\nWorker Communication Matrix (row=src, col=dst):" << endl;
+                for (int i = 0; i < _num_workers; i++) {
+                    for (int j = 0; j < _num_workers; j++)
+                        cout << setw(10) << _worker_comm_matrix[i][j];
+                    cout << endl;
+                }
+                */
+
+                for (int i = 0; i < _num_workers; i++) {
+                    for (int j = 0; j < _num_workers; j++) {
+                        if (i != j) {
+                            total_cross_worker += _worker_comm_matrix[i][j];
+                        }
                     }
                 }
-            }
 
-            cout << "\nTotal Cross-Worker Messages: " << total_cross_worker << endl;
-        } else {
-            send_data(my_row, MASTER_RANK);
+                cout << "\nTotal Cross-Worker Messages: " << total_cross_worker << endl;
+            } else {
+                send_data(my_row, MASTER_RANK);
+            }
         }
 
         // Get number of machines
         int num_machines = (int)_machine_comm_matrix.size();
         
-        // Flatten local matrix for MPI_Reduce
-        
-        
-        vector<int> flat_local(num_machines * num_machines);
-        vector<int> flat_global(num_machines * num_machines);
+        if (g_save_comm_traces) {
+            // Flatten local matrix for MPI_Reduce
+            vector<int> flat_local(num_machines * num_machines);
+            vector<int> flat_global(num_machines * num_machines);
 
-        for (int i = 0; i < num_machines; i++) {
-            for (int j = 0; j < num_machines; j++) {
-                flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
-            }
-        }
-
-        // Sum all workers' matrices into master
-        MPI_Reduce(
-            flat_local.data(), // send buffer
-            flat_global.data(), // where the final result goes
-            num_machines * num_machines, // num elements
-            MPI_INT, // datatype
-            MPI_SUM, // operation
-            MASTER_RANK, // root
-            MPI_COMM_WORLD // communicator
-        );
-
-        if (_my_rank == MASTER_RANK) {
-            // Reconstruct matrix
             for (int i = 0; i < num_machines; i++) {
                 for (int j = 0; j < num_machines; j++) {
-                    _machine_comm_matrix[i][j] =
-                        flat_global[i * num_machines + j];
+                    flat_local[i * num_machines + j] = _machine_comm_matrix[i][j];
                 }
             }
 
-            cout << "\nMachine Communication Matrix (row=src, col=dst):" << endl;
-            for (int i = 0; i < num_machines; i++) {
-                for (int j = 0; j < num_machines; j++)
-                    cout << setw(10) << _machine_comm_matrix[i][j];
-                cout << endl;
-            }
+            // Sum all workers' matrices into master
+            MPI_Reduce(
+                flat_local.data(), // send buffer
+                flat_global.data(), // where the final result goes
+                num_machines * num_machines, // num elements
+                MPI_INT, // datatype
+                MPI_SUM, // operation
+                MASTER_RANK, // root
+                MPI_COMM_WORLD // communicator
+            );
 
-            for (int i = 0; i < num_machines; i++) {
-                for (int j = 0; j < num_machines; j++) {
-                    if (i != j) {
-                        total_cross_machine += _machine_comm_matrix[i][j];
+            if (_my_rank == MASTER_RANK) {
+                // Reconstruct matrix
+                for (int i = 0; i < num_machines; i++) {
+                    for (int j = 0; j < num_machines; j++) {
+                        _machine_comm_matrix[i][j] =
+                            flat_global[i * num_machines + j];
                     }
                 }
-            }
 
-            cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
-        } 
-        // CHRISCOMMENT
-
-        // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
-        // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
-        // If ratio ≈ 0.25 (for 4 machines) Only 25% of cross-worker traffic crosses machines.
-        if (_my_rank == MASTER_RANK) {
-            cout << "Cross-Machine Ratio: " << (double)total_cross_machine / total_cross_worker << endl;
-        }
-
-        // each worker dumps its own vertex comm entries to a file
-        int start_node = params.source_id; // for SSSP specifically
-
-        // each worker dumps its own vertex comm entries to a file, this keeps track of the current superstep now 
-        
-        char filename[256];
-        sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
-        FILE* f = fopen(filename, "w");
-        if (_my_rank == 0) {
-            fprintf(f, "source,superstep,src_vertex,dst_vertex,count\n");
-        }
-        for (auto& [superstep, src_map] : _vertex_comm_map) {
-            for (auto& [src_vertex, dst_map] : src_map) {
-                for (auto& [dst_vertex, count] : dst_map) {
-                    fprintf(f, "%d,%d,%d,%d,%d\n", 
-                        start_node, superstep, src_vertex, dst_vertex, count);
+                cout << "\nMachine Communication Matrix (row=src, col=dst):" << endl;
+                for (int i = 0; i < num_machines; i++) {
+                    for (int j = 0; j < num_machines; j++)
+                        cout << setw(10) << _machine_comm_matrix[i][j];
+                    cout << endl;
                 }
+
+                for (int i = 0; i < num_machines; i++) {
+                    for (int j = 0; j < num_machines; j++) {
+                        if (i != j) {
+                            total_cross_machine += _machine_comm_matrix[i][j];
+                        }
+                    }
+                }
+
+                cout << "Total Cross-Machine Messages: " << total_cross_machine << endl;
+            } 
+            // CHRISCOMMENT
+
+            // since cross_machine is a subset of cross_worker, we can find out of all inter-worker messages, what fraction requires a network hop?
+            // If ratio ≈ 1.0 Almost every cross-worker message goes to another machine.
+            // If ratio ≈ 0.25 (for 4 machines) Only 25% of cross-worker traffic crosses machines.
+            if (_my_rank == MASTER_RANK) {
+                if (total_cross_worker > 0)
+                    ratio = (double)total_cross_machine / total_cross_worker;
+                cout << "Cross-Machine Ratio: " << ratio << endl;
+            }
+
+            if (params.uses_source_id) {
+                int start_node = params.source_id;
+                char filename[256];
+                sprintf(filename, "vertex_comm_worker_%d_src_%d.csv", _my_rank, start_node);
+                FILE* f = fopen(filename, "w");
+                if (_my_rank == 0)
+                    fprintf(f, "source,superstep,src_vertex,dst_vertex,count\n");
+                for (auto& [superstep, src_map] : _vertex_comm_map)
+                    for (auto& [src_vertex, dst_map] : src_map)
+                        for (auto& [dst_vertex, count] : dst_map)
+                            fprintf(f, "%d,%d,%d,%d,%d\n", start_node, superstep, src_vertex, dst_vertex, count);
+                fclose(f);
+
+                worker_barrier();
+                if (_my_rank == MASTER_RANK) {
+                    char mkdir_cmd[512];
+                    sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
+                    system(mkdir_cmd);
+                }
+                worker_barrier();
+
+                char hdfs_cmd[512];
+                sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
+                system(hdfs_cmd);
+                remove(filename);
+                // CHRISCOMMENT
+
+                if (_my_rank == MASTER_RANK) {
+                    write_metrics(params, global_step_num, global_msg_num,
+                        get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
+                        get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
+                        total_cross_worker, total_cross_machine);
+                }
+                // CHRISCOMMENT
+            } else {
+                char filename[256];
+                sprintf(filename, "vertex_comm_worker_%d.csv", _my_rank);
+                FILE* f = fopen(filename, "w");
+                if (_my_rank == 0)
+                    fprintf(f, "superstep,src_vertex,dst_vertex,count\n");
+                for (auto& [superstep, src_map] : _vertex_comm_map)
+                    for (auto& [src_vertex, dst_map] : src_map)
+                        for (auto& [dst_vertex, count] : dst_map)
+                            fprintf(f, "%d,%d,%d,%d\n", superstep, src_vertex, dst_vertex, count);
+                fclose(f);
+
+                worker_barrier();
+                if (_my_rank == MASTER_RANK) {
+                    char mkdir_cmd[512];
+                    sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/pagerank/staging/");
+                    system(mkdir_cmd);
+                }
+                worker_barrier();
+
+                char hdfs_cmd[512];
+                sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/pagerank/staging/ 2>/dev/null", filename);
+                system(hdfs_cmd);
+                remove(filename);
+                // CHRISCOMMENT
+
+                if (_my_rank == MASTER_RANK) {
+                    write_metrics(params, global_step_num, global_msg_num,
+                        get_timer(COMMUNICATION_TIMER), get_timer(SERIALIZATION_TIMER),
+                        get_timer(TRANSFER_TIMER), get_timer(WORKER_TIMER),
+                        total_cross_worker, total_cross_machine);
+                }
+                // CHRISCOMMENT
             }
         }
-        fclose(f);
-        // CHRISCOMMENT
-
-        // make dir and write to hdfs 
-        worker_barrier();
-        if (_my_rank == MASTER_RANK) {
-            char mkdir_cmd[512];
-            sprintf(mkdir_cmd, "/usr/local/hadoop/bin/hdfs dfs -mkdir -p /comm_traces/src_%d/staging/", start_node);
-            system(mkdir_cmd);
-        }
-        worker_barrier();
-
-        
-        char hdfs_cmd[512];
-        sprintf(hdfs_cmd, "/usr/local/hadoop/bin/hdfs dfs -put -f %s /comm_traces/src_%d/staging/ 2>/dev/null", filename, start_node);
-        system(hdfs_cmd);
-
-        remove(filename);
-
-        if (_my_rank == MASTER_RANK) {
-            double comm_time  = get_timer(COMMUNICATION_TIMER);
-            double ser_time   = get_timer(SERIALIZATION_TIMER);
-            double trans_time = get_timer(TRANSFER_TIMER);
-            double compute_time = get_timer(WORKER_TIMER);
-
-            write_metrics(
-                start_node,
-                global_step_num,
-                global_msg_num,
-                comm_time,
-                ser_time,
-                trans_time,
-                compute_time,
-                total_cross_worker,
-                total_cross_machine,
-                _my_rank
-            );
-        }
-        // CHRISCOMMENT
 
         // dump graph
         ResetTimer(WORKER_TIMER);

@@ -192,6 +192,7 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	param.force_write=true;
 	param.native_dispatcher=false;
 	param.source_id = srcID; // pass source ID for metrics
+	param.uses_source_id = true; // indicate that this job uses source_id
 	SPWorker_pregel worker;
 	SPCombiner_pregel combiner;
 	if(use_combiner) worker.setCombiner(&combiner);

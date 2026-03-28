@@ -1,8 +1,9 @@
 #pragma once
 #include <string>
+#include "utils/global.h"
 
 void write_metrics(
-    int source_id,
+    const WorkerParams& params,
     long long supersteps,
     long long total_msgs,
     double comm_time,
@@ -10,6 +11,5 @@ void write_metrics(
     double trans_time,
     double compute_time,
     long long cross_worker,
-    long long cross_machine,
-    int worker_rank
+    long long cross_machine
 );
