@@ -114,11 +114,19 @@ def _load_single_trace(path):
  
 def load_comm_traces(traces_dir):
     paths = sorted(glob.glob(os.path.join(traces_dir, "src_*", "merged.csv")))
+
+    if not paths:
+        pagerank_path = os.path.join(traces_dir, "pagerank", "merged.csv")
+        if os.path.isfile(pagerank_path):
+            paths = [pagerank_path]
+
     if not paths:
         raise RuntimeError(
-            f"No merged.csv files found under {traces_dir}/src_*/\n"
-            "Expected layout: <traces_dir>/src_<N>/merged.csv"
+            f"No merged.csv files found under either:\n"
+            f"  {traces_dir}/src_*/merged.csv\n"
+            f"  {traces_dir}/pagerank/merged.csv"
         )
+
     print(f"  {len(paths)} trace file(s): "
           f"{[os.path.basename(os.path.dirname(p)) for p in paths]}")
  
