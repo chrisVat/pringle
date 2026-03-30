@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PARTITION="custom"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/pagerank/random_8m_4w.txt" 
+PARTITION_FILE="/home/ubuntu/pringle/pagerank/semi_random_8m_4w.txt" 
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 

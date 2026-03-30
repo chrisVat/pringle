@@ -22,11 +22,11 @@ USER = "ubuntu"
 REGION = "us-east-2"
 
 # Your specific PEM file paths
-MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
-SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+# MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
+# SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
-# MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
-# SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
+MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
 
 # MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 # SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
