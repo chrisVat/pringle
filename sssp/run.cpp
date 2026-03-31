@@ -10,7 +10,7 @@
 // setup: run with mpiexec. loads graph once, then loops waiting for queries.
 // ---------------------------------------------------------------------------
 void do_setup(const string& input, const string& output,
-              const string& partition, const string& partition_file)
+              const string& partition, const string& partition_file, bool save_comm_traces)
 {
     g_use_custom_partition = (partition == "custom");
     g_partition_file = partition_file;
@@ -29,6 +29,8 @@ void do_setup(const string& input, const string& output,
     param.force_write = true;
     param.native_dispatcher = false;
     param.source_id = -1;
+    param.uses_source_id = true;
+    param.save_comm_traces = save_comm_traces;
 
     SPWorker_pregel worker;
     SPCombiner_pregel combiner;
@@ -167,10 +169,11 @@ int main(int argc, char* argv[])
 {
     if (argc < 2) {
         printf("Usage:\n");
-        printf("  mpiexec ... ./run setup <input> <output> <partition> [partition_file]\n");
+        printf("  mpiexec ... ./run setup <input> <output> <partition> [partition_file] [save_comm_traces]\n");
         printf("  ./run query <src_id>\n");
         printf("  ./run teardown\n");
         printf("\n  partition: 'default' (modulo) or 'custom' (file-based)\n");
+        printf("  save_comm_traces: 0 (false) or 1 (true)\n");
         return -1;
     }
 
@@ -178,14 +181,21 @@ int main(int argc, char* argv[])
 
     if (mode == "setup") {
         if (argc < 5) {
-            printf("Usage: mpiexec ... ./run setup <input> <output> <partition> [partition_file]\n");
+            printf("Usage: mpiexec ... ./run setup <input> <output> <partition> [partition_file] [save_comm_traces]\n");
             return -1;
         }
+
         string input          = argv[2];
         string output         = argv[3];
         string partition      = argv[4];
         string partition_file = (argc >= 6) ? argv[5] : "";
-        do_setup(input, output, partition, partition_file);
+
+        bool save_comm_traces = false;
+        if (argc >= 7) {
+            save_comm_traces = (atoi(argv[6]) != 0);
+        }
+
+        do_setup(input, output, partition, partition_file, save_comm_traces);
 
     } else if (mode == "query") {
         if (argc < 3) {

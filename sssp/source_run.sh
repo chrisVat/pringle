@@ -1,17 +1,29 @@
+#!/bin/bash
+
 PARTITION="default"   # change to "custom" to use file-based partitioning
 PARTITION_FILE="/home/ubuntu/pringle/sssp/theboogalo3__1_3_1000.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 NODES="/home/ubuntu/pringle/train_test/64_seed0_train.txt"
 
+SAVE_COMM_TRACES=1   # 1 = enable, 0 = disable
+
 # Clean up any stale state from a previous run
 rm -f /tmp/pringle_query_pipe /tmp/pringle_done
 
 # Launch setup in background: loads + partitions graph once, then waits
-mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
-  -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
-  ./run setup $INPUT $OUTPUT $PARTITION $PARTITION_FILE \
-  < /dev/null &
+if [ "$PARTITION" = "custom" ]; then
+  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
+    -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
+    ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "$PARTITION_FILE" "$SAVE_COMM_TRACES" \
+    < /dev/null &
+else
+  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
+    -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
+    ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "" "$SAVE_COMM_TRACES" \
+    < /dev/null &
+fi
+
 SETUP_PID=$!
 
 # Wait until setup signals it is ready (pipe file appears)
