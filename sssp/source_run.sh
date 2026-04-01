@@ -1,12 +1,12 @@
 #!/bin/bash
 
-PARTITION="default"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/theboogalo3__1_3_1000.txt"
+PARTITION="custom"   # change to "custom" to use file-based partitioning
+PARTITION_FILE="/home/ubuntu/pringle/sssp/BASED_8w_4m_sssp_8src.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
-NODES="/home/ubuntu/pringle/train_test/64_seed0_train.txt"
+NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
 
-SAVE_COMM_TRACES=1   # 1 = enable, 0 = disable
+SAVE_COMM_TRACES=0   # 1 = enable, 0 = disable
 
 # Clean up any stale state from a previous run
 rm -f /tmp/pringle_query_pipe /tmp/pringle_done
