@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PARTITION="custom"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/BASED_8w_4m_sssp_8src.txt"
+PARTITION_FILE="/home/ubuntu/pringle/sssp/sssp_compute_only_15m_4w.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
@@ -13,12 +13,12 @@ rm -f /tmp/pringle_query_pipe /tmp/pringle_done
 
 # Launch setup in background: loads + partitions graph once, then waits
 if [ "$PARTITION" = "custom" ]; then
-  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
+  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
     -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
     ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "$PARTITION_FILE" "$SAVE_COMM_TRACES" \
     < /dev/null &
 else
-  mpiexec.openmpi -n 32 --oversubscribe --hostfile ~/hosts \
+  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
     -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
     ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "" "$SAVE_COMM_TRACES" \
     < /dev/null &
