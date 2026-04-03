@@ -4,7 +4,7 @@ PARTITION="custom"   # change to "custom" to use file-based partitioning
 PARTITION_FILE="/home/ubuntu/pringle/sssp/sssp_compute_only_15m_4w.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
-NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test.txt"
+NODES="/home/ubuntu/pringle/train_test/64_seed_train.txt"
 
 SAVE_COMM_TRACES=0   # 1 = enable, 0 = disable
 
