@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PARTITION="custom"   # change to "custom" to use file-based partitioning
-PARTITION_FILE="/home/ubuntu/pringle/sssp/sssp_compute_only_15m_4w.txt"
+PARTITION_FILE="/home/ubuntu/pringle/sssp/BASED_15w_4m_sssp_12src.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 NODES="/home/ubuntu/pringle/train_test/64_seed_train.txt"
