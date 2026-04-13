@@ -28,7 +28,7 @@ int main(int argc, char* argv[]) {
         fflush(stdout);
     }
 
-    pregel_pagerank(input, output, true, false);
+    pregel_pagerank(input, output, true, true);
 
     worker_finalize();
     return 0;
