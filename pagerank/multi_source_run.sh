@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PARTITION="custom"   # "default" or "custom"
-PARTITION_FILE="/home/ubuntu/pringle/pagerank/topology_partition_15m_4w.txt"
+PARTITION_FILE="/home/ubuntu/pringle/pagerank/BASED_15w_4m_pagerank.txt"
 INPUT="/largeTwitchFolder"
 OUTPUT="/outputLargeTwitchFolder"
 SAVE_COMM_TRACES=0
