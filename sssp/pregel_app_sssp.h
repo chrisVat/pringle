@@ -1,5 +1,5 @@
 #include "basic/pregel-dev.h"
-#include "utils/CustomHash.h"
+#include "utils/RuntimeHash.h"
 #include <float.h>
 using namespace std;
 
@@ -74,7 +74,7 @@ obinstream & operator>>(obinstream & m, SPMsg_pregel & v){
 
 //====================================
 
-class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel> // added custom partitioning CustomHash<VertexID>
+class SPVertex_pregel:public Vertex<VertexID, SPValue_pregel, SPMsg_pregel, RuntimeHash<VertexID>>
 {
 	public:
 		void broadcast()
@@ -155,7 +155,9 @@ class SPWorker_pregel:public Worker<SPVertex_pregel>
 			while(pch=strtok(NULL, " "))
 			{
 				int nb=atoi(pch);
-				double len=1;
+				uint64_t h = (uint64_t)id * 2654435761ULL ^ (uint64_t)nb * 2246822519ULL;
+				h ^= h >> 33; h *= 0xff51afd7ed558ccdULL; h ^= h >> 33;
+				double len = 0.001 + 49.999 * (double)(h >> 11) / (double)(1ULL << 53);
 				SPEdge_pregel edge={len, nb};
 				v->value().edges.push_back(edge);
 			}
@@ -190,6 +192,7 @@ void pregel_sssp(int srcID, string in_path, string out_path, bool use_combiner){
 	param.force_write=true;
 	param.native_dispatcher=false;
 	param.source_id = srcID; // pass source ID for metrics
+	param.uses_source_id = true; // indicate that this job uses source_id
 	SPWorker_pregel worker;
 	SPCombiner_pregel combiner;
 	if(use_combiner) worker.setCombiner(&combiner);

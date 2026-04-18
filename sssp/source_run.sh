@@ -1,11 +1,47 @@
+#!/bin/bash
+
+PARTITION="custom"   # change to "custom" to use file-based partitioning
+PARTITION_FILE="/home/ubuntu/pringle/sssp/topology_partition_15m_4w.txt"
+INPUT="/largeTwitchFolder"
+OUTPUT="/outputLargeTwitchFolder"
+NODES="/home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_test_old.txt"
+
+SAVE_COMM_TRACES=0   # 1 = enable, 0 = disable
+
+# Clean up any stale state from a previous run
+rm -f /tmp/pringle_query_pipe /tmp/pringle_done
+
+# Launch setup in background: loads + partitions graph once, then waits
+if [ "$PARTITION" = "custom" ]; then
+  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
+    -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
+    ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "$PARTITION_FILE" "$SAVE_COMM_TRACES" \
+    < /dev/null &
+else
+  mpiexec.openmpi -n 60 --oversubscribe --hostfile ~/hosts \
+    -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
+    ./run setup "$INPUT" "$OUTPUT" "$PARTITION" "" "$SAVE_COMM_TRACES" \
+    < /dev/null &
+fi
+
+SETUP_PID=$!
+
+# Wait until setup signals it is ready (pipe file appears)
+while [ ! -p /tmp/pringle_query_pipe ]; do sleep 1; done
+echo "Setup ready, running queries..."
+
+# Time just the queries (no setup/teardown cost)
 QUERIES_START=$(date +%s%N)
 while read src; do
-  mpiexec.openmpi -n 16 --oversubscribe --hostfile ~/hosts \
-    -x CLASSPATH -x LD_LIBRARY_PATH -x JAVA_HOME \
-    ./run $src /largeTwitchFolder /outputLargeTwitchFolder_$src \
-    < /dev/null
-done < /home/ubuntu/pringle/train_test/selected_nodes_64_train0.20_seed0_train.txt
+  echo "Running query for source node $src"
+  ./run query $src
+done < $NODES
 QUERIES_END=$(date +%s%N)
+
 ELAPSED_MS=$(( (QUERIES_END - QUERIES_START) / 1000000 ))
 echo "Total query time: ${ELAPSED_MS}ms"
 echo "Total query time: ${ELAPSED_MS}ms" >> ~/query_times.log
+
+# Shut down the persistent workers
+./run teardown
+wait $SETUP_PID

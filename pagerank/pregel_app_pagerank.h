@@ -122,18 +122,37 @@ class PRCombiner_pregel:public Combiner<double>
 		}
 };
 
-void pregel_pagerank(string in_path, string out_path, bool use_combiner){
+void pregel_pagerank(string in_path, string out_path, bool use_combiner, bool save_comm_traces){
 	WorkerParams param;
 	param.input_path=in_path;
 	param.output_path=out_path;
 	param.force_write=true;
 	param.native_dispatcher=false;
+	param.uses_source_id = false; 
+	param.source_id = -1;
+	param.save_comm_traces = save_comm_traces;
+
 	PRWorker_pregel worker;
 	PRCombiner_pregel combiner;
 	if(use_combiner) worker.setCombiner(&combiner);
+	
 	PRAgg_pregel agg;
 	worker.setAggregator(&agg);
 	worker.run(param);
+
+	// ALL workers must finish uploading before master merges
+    worker_barrier();
+
+	if(_my_rank == MASTER_RANK) {
+		// Merge all worker files into one HDFS file for PageRank
+		char merge_cmd[512];
+		sprintf(merge_cmd,
+			"hdfs dfs -getmerge /comm_traces/pagerank/staging/ /tmp/merged_pagerank.csv && "
+			"hdfs dfs -put -f /tmp/merged_pagerank.csv /comm_traces/pagerank/merged.csv && "
+			"hdfs dfs -rm -r /comm_traces/pagerank/staging/"
+		);
+		system(merge_cmd);
+	}
 }
 
 void pregel_pagerank_report(string in_path, string out_path, string report_path, bool use_combiner){
@@ -142,6 +161,7 @@ void pregel_pagerank_report(string in_path, string out_path, string report_path,
 	param.output_path=out_path;
 	param.force_write=true;
 	param.native_dispatcher=false;
+	param.uses_source_id = false; 
 	PRWorker_pregel worker;
 	PRCombiner_pregel combiner;
 	if(use_combiner) worker.setCombiner(&combiner);

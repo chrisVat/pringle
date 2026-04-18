@@ -1,0 +1,157 @@
+{
+  "correlations": {
+    "net_vs_node": 0.9442228299056731,
+    "net_vs_proc": 0.9877840268264841,
+    "pred_vs_actual": 0.9652950108303318,
+    "proc_vs_node": 0.9829892045261677,
+    "proxy_vs_actual": 0.9652950108303318
+  },
+  "elapsed_seconds": 2851.273280859983,
+  "feature_summaries": {
+    "actual_time": {
+      "count": 190,
+      "max": 0.226821,
+      "mean": 0.09295589,
+      "min": 0.045542,
+      "std": 0.0467802207511809
+    },
+    "compute_raw": {
+      "count": 190,
+      "max": 998054.0,
+      "mean": 283081.93684210523,
+      "min": 1.0,
+      "std": 340488.1492001033
+    },
+    "net_raw": {
+      "count": 190,
+      "max": 1783000.0,
+      "mean": 748614.7842105263,
+      "min": 2.0,
+      "std": 689064.249194118
+    },
+    "proc_raw": {
+      "count": 190,
+      "max": 231070.0,
+      "mean": 81789.33157894737,
+      "min": 0.0,
+      "std": 84841.57193083658
+    }
+  },
+  "fit_source": "selected_runs_only",
+  "fits": {
+    "full": {
+      "c_bias": 0.054330628244632556,
+      "c_net": 0.0,
+      "c_node": 6.776035971168073e-08,
+      "c_proc": 4.258834430534418e-07,
+      "num_rows": 190,
+      "r2": 0.7364570499605072,
+      "rmse_pct": 21.497212873439093
+    },
+    "no_net": {
+      "c_bias": 0.0537360009131531,
+      "c_net": 0.0,
+      "c_node": 1.0076136736139334e-07,
+      "c_proc": 1.3077703227101536e-07,
+      "num_rows": 190,
+      "r2": 0.9360841603366196,
+      "rmse_pct": 12.768807177265382
+    },
+    "node_only": {
+      "c_bias": 0.05536442632135052,
+      "c_net": 0.0,
+      "c_node": 1.327935794773684e-07,
+      "c_proc": 0.0,
+      "num_rows": 190,
+      "r2": 0.9341865772212388,
+      "rmse_pct": 13.626976718500822
+    }
+  },
+  "recommended_weights": {
+    "c_bias": 0.054330628244632556,
+    "c_net": 0.0,
+    "c_node": 6.776035971168073e-08,
+    "c_proc": 4.258834430534418e-07
+  },
+  "selected_runs": [
+    {
+      "actual_total": 2.373,
+      "label": "random_31914",
+      "num_rows": 27,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/random_15m_4w.json",
+      "source": 31914,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_random_31914.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_31914/merged.csv"
+    },
+    {
+      "actual_total": 2.159,
+      "label": "random_47211",
+      "num_rows": 23,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/random_15m_4w.json",
+      "source": 47211,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_random_47211.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_47211/merged.csv"
+    },
+    {
+      "actual_total": 2.151,
+      "label": "random_157252",
+      "num_rows": 23,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/random_15m_4w.json",
+      "source": 157252,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_random_157252.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_157252/merged.csv"
+    },
+    {
+      "actual_total": 2.214,
+      "label": "random_53095",
+      "num_rows": 22,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/random_15m_4w.json",
+      "source": 53095,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_random_53095.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_53095/merged.csv"
+    },
+    {
+      "actual_total": 2.59,
+      "label": "semi_random_31914",
+      "num_rows": 27,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/semi_random_15m_4w.json",
+      "source": 31914,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_semi_random_31914.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_31914/merged.csv"
+    },
+    {
+      "actual_total": 2.21,
+      "label": "semi_random_47211",
+      "num_rows": 23,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/semi_random_15m_4w.json",
+      "source": 47211,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_semi_random_47211.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_47211/merged.csv"
+    },
+    {
+      "actual_total": 2.199,
+      "label": "semi_random_157252",
+      "num_rows": 23,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/semi_random_15m_4w.json",
+      "source": 157252,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_semi_random_157252.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_157252/merged.csv"
+    },
+    {
+      "actual_total": 2.271,
+      "label": "semi_random_53095",
+      "num_rows": 22,
+      "partition": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/semi_random_15m_4w.json",
+      "source": 53095,
+      "timings": "/Users/safiaboutaleb/Developer/pringle/safia_new_partition_files/sssp/linear_model_training_data/eval_semi_random_53095.json",
+      "trace": "/Users/safiaboutaleb/Desktop/comm_traces_sssp_15m_4w/src_53095/merged.csv"
+    }
+  ],
+  "selection": {
+    "exclude_label_regex": [],
+    "include_label_regex": [
+      "^random_",
+      "^semi_random_"
+    ]
+  }
+}

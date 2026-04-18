@@ -25,6 +25,19 @@ REGION = "us-east-2"
 MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
 SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
+# MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+# SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
+
+# MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
+# SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
+
+# Set to True to pull a git branch and recompile on master + all slaves before starting.
+SYNC_AND_RECOMPILE = True
+GIT_BRANCH = "eval_comm_new"          # branch to checkout on all nodes
+PRINGLE_DIR = "/home/ubuntu/pringle"
+SSSP_DIR    = "/home/ubuntu/pringle/sssp"
+PAGERANK_DIR    = "/home/ubuntu/pringle/pagerank"
+
 # --- COMMANDS ---
 # No more ENV_VARS needed here, we are relying on .bashrc!
 MASTER_STOP_CMDS = """
@@ -120,6 +133,15 @@ def execute_ssh_command(hostname, commands, description, key_path):
         ssh.close()
 
 
+# SYNC_CMDS = f"""
+# cd {PRINGLE_DIR} && git reset --hard HEAD~ && git fetch && git checkout {GIT_BRANCH} && git pull
+# cd {PAGERANK_DIR} && make clean && make
+# """
+SYNC_CMDS = f"""
+cd {PRINGLE_DIR} && git fetch origin && git checkout {GIT_BRANCH} && git reset --hard origin/{GIT_BRANCH} && git clean -fd
+cd {SSSP_DIR} && make clean && make
+"""
+
 def main():
     print("Starting Hadoop Cluster Reset Automation...")
 
@@ -133,6 +155,12 @@ def main():
 
     print(f"Found Master: {master_node}")
     print(f"Found {len(slave_nodes)} Slaves: {', '.join(slave_nodes)}")
+
+    if SYNC_AND_RECOMPILE:
+        print(f"\n=== Syncing branch '{GIT_BRANCH}' and recompiling on all nodes ===")
+        execute_ssh_command(master_node, SYNC_CMDS, f"git checkout {GIT_BRANCH} + make", MASTER_KEY_PATH)
+        for slave in slave_nodes:
+            execute_ssh_command(slave, SYNC_CMDS, f"git checkout {GIT_BRANCH} + make", SLAVE_KEY_PATH)
 
     execute_ssh_command(master_node, MASTER_STOP_CMDS, "Stopping Hadoop & Formatting Namenode", MASTER_KEY_PATH)
 

@@ -483,7 +483,7 @@ def main():
     ap.add_argument("--max_iters", type=int, default=50)
     ap.add_argument("--candidates_per_iter", type=int, default=200)
 
-    ap.add_argument("--output", default="the_boogaloo.json")
+    ap.add_argument("--output", default="gpt_boogenator.json")
     args = ap.parse_args()
 
     tasks, edges_by_task, out_msgs, in_msgs, incident, all_vertices, sources = load_traces(args.comm_traces_root)
