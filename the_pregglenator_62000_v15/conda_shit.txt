@@ -1,2 +1,0 @@
-# uhhhhhh
-conda install -c conda-forge pymetis
