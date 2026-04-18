@@ -1,7 +1,7 @@
 import json
 
 # Path to pregglenator output
-json_file = "random_15m_4w.json"
+json_file = "BASED_15w_4m_pagerank.json"
 
 # Load JSON
 with open(json_file) as f:
@@ -25,7 +25,7 @@ for node, info in assignment.items():
     node_to_rank[int(node)] = rank
 
 # Write partition.txt
-with open("partition.txt", "w") as f:
+with open("BASED_15w_4m_pagerank.txt", "w") as f:
     for node in sorted(node_to_rank.keys()):
         f.write(f"{node} {node_to_rank[node]}\n")
 

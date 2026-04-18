@@ -1,0 +1,240 @@
+{
+  "source": 31914,
+  "partition": "semi_random",
+  "total_time": 2.59,
+  "query_time": 2.59,
+  "communication_time": 1.420237,
+  "serialization_time": 0.029378,
+  "transfer_time": 1.389991,
+  "total_computational_time": 2.590579,
+  "total_msgs": 38370604,
+  "total_vadd": 0,
+  "dump_time": 0.509899,
+  "note": "SSSP from src=31914. Superstep 28 has 0 msgs (convergence).",
+  "supersteps": [
+    {
+      "superstep": 1,
+      "time": 0.10389,
+      "msgs": 67,
+      "vadd": 0,
+      "cross_worker": 66,
+      "cross_machine": 62
+    },
+    {
+      "superstep": 2,
+      "time": 0.05199,
+      "msgs": 8752,
+      "vadd": 0,
+      "cross_worker": 8601,
+      "cross_machine": 8109
+    },
+    {
+      "superstep": 3,
+      "time": 0.129166,
+      "msgs": 2135516,
+      "vadd": 0,
+      "cross_worker": 2100199,
+      "cross_machine": 1992970
+    },
+    {
+      "superstep": 4,
+      "time": 0.226821,
+      "msgs": 4580479,
+      "vadd": 0,
+      "cross_worker": 4504074,
+      "cross_machine": 4274892
+    },
+    {
+      "superstep": 5,
+      "time": 0.178067,
+      "msgs": 4526964,
+      "vadd": 0,
+      "cross_worker": 4451533,
+      "cross_machine": 4225232
+    },
+    {
+      "superstep": 6,
+      "time": 0.175595,
+      "msgs": 4413454,
+      "vadd": 0,
+      "cross_worker": 4339794,
+      "cross_machine": 4119173
+    },
+    {
+      "superstep": 7,
+      "time": 0.154328,
+      "msgs": 3976232,
+      "vadd": 0,
+      "cross_worker": 3910093,
+      "cross_machine": 3711296
+    },
+    {
+      "superstep": 8,
+      "time": 0.141321,
+      "msgs": 3637736,
+      "vadd": 0,
+      "cross_worker": 3577135,
+      "cross_machine": 3395066
+    },
+    {
+      "superstep": 9,
+      "time": 0.11882,
+      "msgs": 3060846,
+      "vadd": 0,
+      "cross_worker": 3010057,
+      "cross_machine": 2856680
+    },
+    {
+      "superstep": 10,
+      "time": 0.107726,
+      "msgs": 2590162,
+      "vadd": 0,
+      "cross_worker": 2547260,
+      "cross_machine": 2417615
+    },
+    {
+      "superstep": 11,
+      "time": 0.0914469,
+      "msgs": 2120592,
+      "vadd": 0,
+      "cross_worker": 2085329,
+      "cross_machine": 1979216
+    },
+    {
+      "superstep": 12,
+      "time": 0.0797291,
+      "msgs": 1751329,
+      "vadd": 0,
+      "cross_worker": 1722288,
+      "cross_machine": 1634544
+    },
+    {
+      "superstep": 13,
+      "time": 0.0797119,
+      "msgs": 1403439,
+      "vadd": 0,
+      "cross_worker": 1380225,
+      "cross_machine": 1309754
+    },
+    {
+      "superstep": 14,
+      "time": 0.0871861,
+      "msgs": 1156474,
+      "vadd": 0,
+      "cross_worker": 1137007,
+      "cross_machine": 1078870
+    },
+    {
+      "superstep": 15,
+      "time": 0.0707159,
+      "msgs": 900712,
+      "vadd": 0,
+      "cross_worker": 885722,
+      "cross_machine": 840505
+    },
+    {
+      "superstep": 16,
+      "time": 0.0597692,
+      "msgs": 704725,
+      "vadd": 0,
+      "cross_worker": 693129,
+      "cross_machine": 657639
+    },
+    {
+      "superstep": 17,
+      "time": 0.0875859,
+      "msgs": 526888,
+      "vadd": 0,
+      "cross_worker": 518061,
+      "cross_machine": 491694
+    },
+    {
+      "superstep": 18,
+      "time": 0.0880778,
+      "msgs": 388553,
+      "vadd": 0,
+      "cross_worker": 382078,
+      "cross_machine": 362682
+    },
+    {
+      "superstep": 19,
+      "time": 0.0727131,
+      "msgs": 239778,
+      "vadd": 0,
+      "cross_worker": 235773,
+      "cross_machine": 223685
+    },
+    {
+      "superstep": 20,
+      "time": 0.0515339,
+      "msgs": 137562,
+      "vadd": 0,
+      "cross_worker": 135333,
+      "cross_machine": 128495
+    },
+    {
+      "superstep": 21,
+      "time": 0.050781,
+      "msgs": 69145,
+      "vadd": 0,
+      "cross_worker": 68001,
+      "cross_machine": 64528
+    },
+    {
+      "superstep": 22,
+      "time": 0.0482562,
+      "msgs": 28816,
+      "vadd": 0,
+      "cross_worker": 28361,
+      "cross_machine": 26954
+    },
+    {
+      "superstep": 23,
+      "time": 0.0519478,
+      "msgs": 10136,
+      "vadd": 0,
+      "cross_worker": 9968,
+      "cross_machine": 9482
+    },
+    {
+      "superstep": 24,
+      "time": 0.046849,
+      "msgs": 1811,
+      "vadd": 0,
+      "cross_worker": 1788,
+      "cross_machine": 1695
+    },
+    {
+      "superstep": 25,
+      "time": 0.0469079,
+      "msgs": 407,
+      "vadd": 0,
+      "cross_worker": 404,
+      "cross_machine": 387
+    },
+    {
+      "superstep": 26,
+      "time": 0.048759,
+      "msgs": 27,
+      "vadd": 0,
+      "cross_worker": 27,
+      "cross_machine": 26
+    },
+    {
+      "superstep": 27,
+      "time": 0.047838,
+      "msgs": 2,
+      "vadd": 0,
+      "cross_worker": 2,
+      "cross_machine": 2
+    },
+    {
+      "superstep": 28,
+      "time": 0.0786691,
+      "msgs": 0,
+      "vadd": 0,
+      "cross_worker": 0,
+      "cross_machine": 0
+    }
+  ]
+}

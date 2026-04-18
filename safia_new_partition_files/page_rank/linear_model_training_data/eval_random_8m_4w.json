@@ -1,0 +1,27 @@
+{
+  "source": null,
+  "partition": "random",
+  "total_time": 1.751173,
+  "query_time": 1.751173,
+  "communication_time": 0.192415,
+  "serialization_time": 0.028312,
+  "transfer_time": 0.163822,
+  "total_computational_time": 1.751173,
+  "total_msgs": 32423070,
+  "total_vadd": 0,
+  "dump_time": 0.181334,
+  "note": "PageRank run (no source node). Superstep 11 is convergence (0 msgs).",
+  "supersteps": [
+    { "superstep": 1, "time": 0.189488, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 2, "time": 0.177282, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 3, "time": 0.172573, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 4, "time": 0.170518, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 5, "time": 0.170486, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 6, "time": 0.169862, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 7, "time": 0.171137, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 8, "time": 0.170068, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 9, "time": 0.170863, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 10, "time": 0.171499, "msgs": 3242307, "vadd": 0, "cross_worker": 3141060, "cross_machine": 2837082 },
+    { "superstep": 11, "time": 0.0107851, "msgs": 0, "vadd": 0, "cross_worker": 0, "cross_machine": 0 }
+  ]
+}

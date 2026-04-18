@@ -22,11 +22,11 @@ USER = "ubuntu"
 REGION = "us-east-2"
 
 # Your specific PEM file paths
-# MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
-# SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
+MASTER_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_master.pem"
+SLAVE_KEY_PATH = r"/Users/safiaboutaleb/Desktop/pregel_slave.pem"
 
-MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
-SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
+# MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+# SLAVE_KEY_PATH  = r"C:\Users\safia\OneDrive\Desktop\pregel_slave.pem"
 
 # MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
 # SLAVE_KEY_PATH = r"C:\Users\chris\.ssh\pregel_slave.pem"
@@ -133,9 +133,13 @@ def execute_ssh_command(hostname, commands, description, key_path):
         ssh.close()
 
 
+# SYNC_CMDS = f"""
+# cd {PRINGLE_DIR} && git reset --hard HEAD~ && git fetch && git checkout {GIT_BRANCH} && git pull
+# cd {PAGERANK_DIR} && make clean && make
+# """
 SYNC_CMDS = f"""
-cd {PRINGLE_DIR} && git reset --hard HEAD~ && git fetch && git checkout {GIT_BRANCH} && git pull
-cd {PAGERANK_DIR} && make clean && make
+cd {PRINGLE_DIR} && git fetch origin && git checkout {GIT_BRANCH} && git reset --hard origin/{GIT_BRANCH} && git clean -fd
+cd {SSSP_DIR} && make clean && make
 """
 
 def main():

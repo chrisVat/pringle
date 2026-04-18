@@ -14,12 +14,12 @@ REGION = "us-east-2"
 AWS_PROFILE = "pregel"
 
 # Where to save it locally
-LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls")
+LOCAL_OUT_DIR = os.path.join(os.getcwd(), "query_times_pulls_pagerank_15m_4w")
 
 # Your PEM path
 # MASTER_KEY_PATH = r"C:\Users\chris\.ssh\pregel_master.pem"
-# MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
-MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
+MASTER_KEY_PATH = "/Users/safiaboutaleb/Desktop/pregel_master.pem"
+# MASTER_KEY_PATH = r"C:\Users\safia\OneDrive\Desktop\pregel_master.pem"
 
 def get_aws_cli_instances(tag_value: str):
     cmd = [
